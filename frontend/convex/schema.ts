@@ -17,6 +17,7 @@ export default defineSchema({
         environment: v.string(),
         mlEnhancement: v.boolean(),
         name: v.string(),
+        organizationId: v.optional(v.string()), // Added organizationId to fix schema validation
         redirectUri: v.optional(v.string()),
         riskPolicyId: v.id("riskPolicies"),
         secret: v.string(),
