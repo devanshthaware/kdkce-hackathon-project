@@ -14,15 +14,15 @@ interface StatCardProps {
 
 export function StatCard({ title, value, description, icon: Icon, trend }: StatCardProps) {
   return (
-    <Card className="bg-slate-900 border-slate-800 text-slate-100">
+    <Card className="bg-card border-border text-foreground">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-slate-400">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <Icon className="size-4 text-emerald-400" />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
         {(description || trend) && (
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             {trend && (
               <span className={trend.positive ? "text-emerald-400" : "text-rose-400"}>
                 {trend.value}{" "}

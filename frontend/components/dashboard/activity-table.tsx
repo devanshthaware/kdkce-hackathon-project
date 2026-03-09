@@ -23,8 +23,14 @@ const riskOrder: Record<string, number> = { low: 0, medium: 1, safe: 0, suspicio
 type SortField = "user" | "risk" | "time" | null
 type SortDir = "asc" | "desc"
 
+import { useOrganization } from "@/components/providers/organization-provider"
+
 export function ActivityTable() {
-  const activities = useQuery(api.activities.list, {})
+  const { activeOrganization } = useOrganization()
+  const activities = useQuery(
+    api.activities.list,
+    activeOrganization ? { organizationId: activeOrganization } : "skip"
+  )
   const [search, setSearch] = useState("")
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortDir, setSortDir] = useState<SortDir>("asc")

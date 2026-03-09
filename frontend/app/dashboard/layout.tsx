@@ -1,39 +1,45 @@
-"use client"
-
-import { useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { auth, currentUser } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 import { DashboardSidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { SecurityPopup } from "@/components/support/SecurityPopup"
+import { SeedWrapper } from "@/components/dashboard/seed-wrapper"
+import { OrganizationProvider } from "@/components/providers/organization-provider"
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { isLoaded, user } = useUser()
-  const router = useRouter()
+  const { userId } = await auth()
 
-  useEffect(() => {
-    if (isLoaded && user) {
-      const isAdmin = 
-        user.publicMetadata?.role === "admin" || 
-        user.primaryEmailAddress?.emailAddress === "devanshthaware0@gmail.com"
+  if (!userId) {
+    redirect("/sign-in")
+  }
 
-      if (isAdmin) {
-        router.push("/admin")
-      }
+  const user = await currentUser()
+  
+  if (user) {
+    const isAdmin = 
+      user.publicMetadata?.role === "admin" || 
+      user.emailAddresses?.[0]?.emailAddress === "devanshthaware0@gmail.com"
+
+    if (isAdmin) {
+      redirect("/admin")
     }
-  }, [isLoaded, user, router])
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-      <div className="transition-all duration-300 lg:pl-64">
-        <Topbar />
-        <main className="p-6">{children}</main>
-        <SecurityPopup />
+    <OrganizationProvider>
+      <div className="min-h-screen bg-background">
+        <DashboardSidebar />
+        <div className="transition-all duration-300 lg:pl-64">
+          <Topbar />
+          <main className="p-6">{children}</main>
+          <SecurityPopup />
+          <SeedWrapper />
+        </div>
       </div>
-    </div>
+    </OrganizationProvider>
   )
 }

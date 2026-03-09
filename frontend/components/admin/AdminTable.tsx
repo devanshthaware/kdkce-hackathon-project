@@ -20,12 +20,12 @@ interface AdminTableProps<T> {
 
 export function AdminTable<T>({ columns, data, emptyMessage = "No data available" }: AdminTableProps<T>) {
   return (
-    <div className="rounded-md border border-slate-800 bg-slate-900 overflow-hidden">
+    <div className="rounded-md border border-border bg-card overflow-hidden">
       <Table>
-        <TableHeader className="bg-slate-950/50">
-          <TableRow className="border-slate-800 hover:bg-transparent">
+        <TableHeader className="bg-muted/50">
+          <TableRow className="border-border hover:bg-transparent">
             {columns.map((col, idx) => (
-              <TableHead key={idx} className={`text-slate-400 font-semibold ${col.className}`}>
+              <TableHead key={idx} className={`text-muted-foreground font-semibold ${col.className}`}>
                 {col.header}
               </TableHead>
             ))}
@@ -34,7 +34,7 @@ export function AdminTable<T>({ columns, data, emptyMessage = "No data available
         <TableBody>
           {data.length > 0 ? (
             data.map((item, rowIdx) => (
-              <TableRow key={rowIdx} className="border-slate-800 hover:bg-slate-800/50 text-slate-300">
+              <TableRow key={rowIdx} className="border-border hover:bg-muted/50 text-foreground">
                 {columns.map((col, colIdx) => (
                   <TableCell key={colIdx} className={col.className}>
                     {typeof col.accessor === "function" 
@@ -46,7 +46,7 @@ export function AdminTable<T>({ columns, data, emptyMessage = "No data available
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center text-slate-500">
+              <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>

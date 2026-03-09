@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { useOrganization } from "@/components/providers/organization-provider"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { RiskChart } from "@/components/dashboard/risk-chart"
 import { ActivityTable } from "@/components/dashboard/activity-table"
@@ -11,7 +12,25 @@ import { Button } from "@/components/ui/button"
 import { Users, AlertTriangle, AppWindow, Gauge, Zap, ShieldCheck } from "lucide-react"
 
 export default function DashboardPage() {
-  const stats = useQuery(api.sessions.getStats)
+  const { activeOrganization } = useOrganization()
+  const stats = useQuery(
+    api.sessions.getStats, 
+    activeOrganization ? { organizationId: activeOrganization } : "skip"
+  )
+
+  const riskLevels = stats?.riskDistribution
+    ? [
+        { label: "Low Risk", value: stats.riskDistribution.low, color: "bg-emerald-500" },
+        { label: "Medium Risk", value: stats.riskDistribution.medium, color: "bg-yellow-500" },
+        { label: "High Risk", value: stats.riskDistribution.high, color: "bg-orange-500" },
+        { label: "Critical", value: stats.riskDistribution.critical, color: "bg-red-500" },
+      ]
+    : [
+        { label: "Low Risk", value: 0, color: "bg-emerald-500" },
+        { label: "Medium Risk", value: 0, color: "bg-yellow-500" },
+        { label: "High Risk", value: 0, color: "bg-orange-500" },
+        { label: "Critical", value: 0, color: "bg-red-500" },
+      ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,14 +47,14 @@ export default function DashboardPage() {
         <StatCard
           title="Risk Events"
           value={stats?.totalSessions.toLocaleString() ?? "..."}
-          change="+12.5% from last hour"
-          trend="up"
+          change={`${stats?.totalSessions ?? 0} total sessions tracked`}
+          trend="neutral"
           icon={AlertTriangle}
         />
         <StatCard
           title="Active Sessions"
-          value="482"
-          change="+12 new sessions"
+          value={stats?.activeSessions?.toLocaleString() ?? "..."}
+          change="Last 24 hours"
           trend="neutral"
           icon={Users}
         />
@@ -43,13 +62,13 @@ export default function DashboardPage() {
           title="Threats Blocked"
           value={stats?.highRiskAlerts.toString() ?? "..."}
           change="Real-time protection"
-          trend="up"
+          trend={stats?.highRiskAlerts ? "up" : "neutral"}
           icon={ShieldCheck}
         />
         <StatCard
-          title="API Usage"
-          value="65%"
-          change="32.4k / 50k events"
+          title="Avg Risk Score"
+          value={stats?.avgRiskScore?.toString() ?? "..."}
+          change={`Across ${stats?.activeApps ?? 0} active app${(stats?.activeApps ?? 0) !== 1 ? "s" : ""}`}
           trend="neutral"
           icon={Zap}
         />
@@ -65,12 +84,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-6">
-              {[
-                { label: "Low Risk", value: 68, color: "bg-emerald-500" },
-                { label: "Medium Risk", value: 22, color: "bg-yellow-500" },
-                { label: "High Risk", value: 8, color: "bg-orange-500" },
-                { label: "Critical", value: 2, color: "bg-red-500" },
-              ].map((item) => (
+              {riskLevels.map((item) => (
                 <div key={item.label} className="flex flex-col gap-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground font-medium">{item.label}</span>
@@ -78,7 +92,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="h-1.5 w-full rounded-full bg-secondary/50 overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${item.color} shadow-[0_0_8px_rgba(0,0,0,0.2)]`}
+                      className={`h-full rounded-full ${item.color} shadow-[0_0_8px_rgba(0,0,0,0.2)] transition-all duration-500`}
                       style={{ width: `${item.value}%` }}
                     />
                   </div>

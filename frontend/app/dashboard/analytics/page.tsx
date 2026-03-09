@@ -62,9 +62,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null
 }
+import { useOrganization } from "@/components/providers/organization-provider"
 
 export default function AnalyticsPage() {
-  const analytics = useQuery(api.sessions.getAnalytics)
+  const { activeOrganization } = useOrganization()
+  const analytics = useQuery(
+    api.sessions.getAnalytics,
+    activeOrganization ? { organizationId: activeOrganization } : "skip"
+  )
 
   if (!analytics) {
     return (

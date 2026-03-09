@@ -14,6 +14,18 @@ export const list = query({
     },
 });
 
+export const getApplicationsByOrg = query({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("applications")
+      .withIndex("by_org", q =>
+        q.eq("organizationId", args.organizationId)
+      )
+      .collect();
+  }
+});
+
 export const create = mutation({
     args: {
         name: v.string(),
@@ -22,6 +34,7 @@ export const create = mutation({
         type: v.string(),
         redirectUri: v.optional(v.string()),
         mlEnhancement: v.boolean(),
+        organizationId: v.id("organizations"),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -106,6 +119,28 @@ export const getOrCreateDemoApp = mutation({
         const apiKey = `ak_demo_${Math.random().toString(36).substring(2, 8)}`;
         const secret = `sk_demo_${Math.random().toString(36).substring(2, 8)}`;
 
+        // Check for an existing organization or create a default one
+        let orgMembership = await ctx.db
+            .query("organizationMembers")
+            .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+            .first();
+
+        let organizationId;
+        if (!orgMembership) {
+            organizationId = await ctx.db.insert("organizations", {
+                name: "Personal Workspace",
+                ownerId: identity.subject,
+                createdAt: Date.now(),
+            });
+            await ctx.db.insert("organizationMembers", {
+                organizationId,
+                userId: identity.subject,
+                role: "owner",
+            });
+        } else {
+            organizationId = orgMembership.organizationId;
+        }
+
         const id = await ctx.db.insert("applications", {
             name: "Demo Application",
             environment: "Development",
@@ -117,6 +152,7 @@ export const getOrCreateDemoApp = mutation({
             apiKey,
             secret,
             userId: identity.subject,
+            organizationId,
         });
 
         return await ctx.db.get(id);

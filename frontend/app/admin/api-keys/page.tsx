@@ -17,11 +17,11 @@ import { api } from "@/convex/_generated/api"
 
 
 const columns = [
-  { header: "Project", accessor: "project" as const, className: "font-semibold text-slate-100" },
+  { header: "Project", accessor: "project" as const, className: "font-semibold text-foreground" },
   { 
     header: "API Key", 
     accessor: (item: any) => (
-      <code className="bg-slate-800 px-2 py-1 rounded text-emerald-400 text-xs font-mono">
+      <code className="bg-muted px-2 py-1 rounded text-emerald-500 dark:text-emerald-400 text-xs font-mono">
         {item.key}
       </code>
     )
@@ -36,23 +36,23 @@ const columns = [
     accessor: (item: any) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-slate-800">
+          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-300">
+        <DropdownMenuContent align="end">
           <DropdownMenuLabel>Key Actions</DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-slate-800" />
-          <DropdownMenuItem className="hover:bg-slate-800 cursor-pointer">
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="cursor-pointer">
             <RotateCw className="mr-2 h-4 w-4" />
             Rotate Key
           </DropdownMenuItem>
-          <DropdownMenuItem className="hover:bg-slate-800 cursor-pointer">
+          <DropdownMenuItem className="cursor-pointer">
             <Info className="mr-2 h-4 w-4" />
             View Permissions
           </DropdownMenuItem>
-          <DropdownMenuSeparator className="bg-slate-800" />
-          <DropdownMenuItem className="hover:bg-slate-800 cursor-pointer text-rose-400 focus:text-rose-400">
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="cursor-pointer text-rose-400 focus:text-rose-400">
             <Trash2 className="mr-2 h-4 w-4" />
             Revoke Key
           </DropdownMenuItem>
@@ -69,18 +69,18 @@ export default function APIKeysManagement() {
   const apiKeys = projects?.map(p => ({
     id: p.id,
     project: p.name,
-    key: "ak_live_••••••••" + Math.random().toString(36).substring(2, 6), // In real app, keys would be in a separate table or masked by server
-    created: "2024-03-01", // Placeholder, ideally in schema
+    key: "ak_live_••••••••" + Math.random().toString(36).substring(2, 6),
+    created: "2024-03-01",
     status: p.status
   }))
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">API Keys</h1>
-          <p className="text-slate-400 mt-1">Manage and audit security credentials for all platform applications.</p>
+          <h1 className="text-3xl font-bold text-foreground">API Keys</h1>
+          <p className="text-muted-foreground mt-1">Manage and audit security credentials for all platform applications.</p>
         </div>
-        <Button className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold">
+        <Button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
           <Key className="mr-2 h-4 w-4" />
           Issue Special Key
         </Button>

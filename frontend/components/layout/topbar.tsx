@@ -33,9 +33,27 @@ import {
   LogOut,
   X,
 } from "lucide-react"
+import {
+  ChevronDown,
+  Building2,
+  PlusCircle
+} from "lucide-react"
 
 import { UserButton } from "@clerk/nextjs"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
+import { useOrganization } from "@/components/providers/organization-provider"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -51,6 +69,10 @@ export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [newOrgName, setNewOrgName] = useState("")
+  const createOrganization = useMutation(api.organizations.create)
+  
   const pathname = usePathname()
   const router = useRouter()
 
@@ -60,6 +82,9 @@ export function Topbar() {
     { id: 3, text: "New application registered: Partner API", time: "1h ago", unread: false },
     { id: 4, text: "Risk policy threshold updated for Finance model", time: "3h ago", unread: false },
   ]
+
+  const { activeOrganization, setActiveOrganization, organizations } = useOrganization()
+  const activeOrgData = organizations?.find(org => org._id === activeOrganization)
 
   return (
     <>
@@ -109,6 +134,40 @@ export function Topbar() {
           <Shield className="size-5 text-primary" />
           <span className="text-xl font-bold tracking-tight">AegisAuth</span>
         </Link>
+        {/* Organization Switcher */}
+        <div className="hidden lg:flex items-center ml-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-9 gap-2 px-3 border-border/60 bg-secondary/30">
+                <Building2 className="size-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {activeOrgData ? activeOrgData.name : "Loading..."}
+                </span>
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[200px]">
+              {organizations?.map((org: any) => (
+                <DropdownMenuItem
+                  key={org._id}
+                  onClick={() => setActiveOrganization(org._id)}
+                  className={cn(
+                    "cursor-pointer",
+                    activeOrganization === org._id && "bg-secondary font-medium"
+                  )}
+                >
+                  <Building2 className="mr-2 size-4 text-muted-foreground" />
+                  {org.name}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setIsCreateModalOpen(true)} className="cursor-pointer text-muted-foreground">
+                <PlusCircle className="mr-2 size-4" />
+                Create Organization
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         {/* Search */}
         <div className="hidden flex-1 lg:block">
@@ -181,6 +240,52 @@ export function Topbar() {
           <UserButton afterSignOutUrl="/" />
         </div>
       </header>
+
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="bg-background border-border sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create Organization</DialogTitle>
+            <DialogDescription>
+              Create a new workspace for your team.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="orgName">Organization Name</Label>
+              <Input
+                id="orgName"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                className="bg-secondary/50 border-border/50"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={!newOrgName.trim()}
+              onClick={async () => {
+                if (!newOrgName.trim()) return;
+                try {
+                  const newOrgId = await createOrganization({ name: newOrgName });
+                  // Cast to any to safely set active organization since Id is strict
+                  setActiveOrganization(newOrgId as any);
+                  setIsCreateModalOpen(false);
+                  setNewOrgName("");
+                } catch (error) {
+                  console.error("Failed to create organization:", error);
+                }
+              }}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

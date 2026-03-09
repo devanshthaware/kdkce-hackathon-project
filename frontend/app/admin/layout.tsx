@@ -1,9 +1,10 @@
 "use client"
 
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AdminSidebar } from "@/components/admin/AdminSidebar"
 import { useUser } from "@clerk/nextjs"
 import { redirect } from "next/navigation"
+import { Separator } from "@/components/ui/separator"
 
 export default function AdminLayout({
   children,
@@ -22,14 +23,19 @@ export default function AdminLayout({
       redirect("/dashboard") 
     }
   } else if (isLoaded && !user) {
-    redirect("/auth")
+    redirect("/sign-in")
   }
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-slate-950 text-slate-50">
+      <div className="flex min-h-screen w-full bg-background text-foreground">
         <AdminSidebar />
-        <SidebarInset className="flex flex-col bg-slate-950">
+        <SidebarInset className="flex flex-col bg-background">
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-lg">
+            <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <span className="text-sm font-medium text-muted-foreground">Admin Panel</span>
+          </header>
           <main className="flex-1 p-6 overflow-y-auto">
             {children}
           </main>

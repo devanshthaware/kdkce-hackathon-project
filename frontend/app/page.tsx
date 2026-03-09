@@ -1,4 +1,3 @@
-"use client"
 import { Navbar } from "@/components/landing/navbar"
 import { Hero } from "@/components/landing/hero"
 import { Features } from "@/components/landing/features"
@@ -6,8 +5,15 @@ import { Architecture } from "@/components/landing/architecture"
 import { CTA } from "@/components/landing/cta"
 import { Shield } from "lucide-react"
 import { DitherBackground } from "@/components/landing/dither-background"
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth();
+
+  if (userId) {
+    redirect("/dashboard");
+  }
   return (
     <div className="min-h-screen bg-background relative overflow-x-hidden">
       <DitherBackground />

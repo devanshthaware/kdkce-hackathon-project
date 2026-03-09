@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useOrganization } from "@/components/providers/organization-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -161,8 +162,14 @@ type SortField = "name" | "environment" | "status" | null
 type SortDir = "asc" | "desc"
 
 export default function ApplicationsPage() {
-  const apps = useQuery(api.applications.list, {})
+  const { activeOrganization } = useOrganization()
+  
+  const apps = useQuery(
+    api.applications.getApplicationsByOrg, 
+    activeOrganization ? { organizationId: activeOrganization } : "skip"
+  )
   const policies = useQuery(api.riskPolicies.list, {})
+  const organizations = useQuery(api.organizations.getUserOrganizations, {})
   const createApp = useMutation(api.applications.create)
   const updateApp = useMutation(api.applications.update)
   const toggleStatus = useMutation(api.applications.toggleStatus)
@@ -178,7 +185,8 @@ export default function ApplicationsPage() {
     riskPolicyId: "" as Id<"riskPolicies">,
     type: "Web App",
     redirectUri: "",
-    mlEnhancement: true
+    mlEnhancement: true,
+    organizationId: "" as Id<"organizations">
   })
 
   const [editOpen, setEditOpen] = useState(false)
@@ -232,7 +240,8 @@ export default function ApplicationsPage() {
         riskPolicyId: newApp.riskPolicyId,
         type: newApp.type,
         redirectUri: newApp.redirectUri || undefined,
-        mlEnhancement: newApp.mlEnhancement
+        mlEnhancement: newApp.mlEnhancement,
+        organizationId: newApp.organizationId
       })
       // The local apps list will be automatically updated by Convex
       // We need to find the created app in the list to show success dialog
@@ -311,7 +320,8 @@ export default function ApplicationsPage() {
               riskPolicyId: "" as Id<"riskPolicies">,
               type: "Web App",
               redirectUri: "",
-              mlEnhancement: true
+              mlEnhancement: true,
+              organizationId: "" as Id<"organizations">
             })
           }
         }}>
@@ -394,9 +404,23 @@ export default function ApplicationsPage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between rounded-xl bg-secondary/20 p-4 border border-border/40">
+                  <div className="flex flex-col gap-4">
                     <Label className="text-sm font-semibold">Organization</Label>
-                    <span className="text-sm text-muted-foreground font-medium">FinTechCorp (Locked)</span>
+                    <Select
+                      value={newApp.organizationId}
+                      onValueChange={(v) => setNewApp({ ...newApp, organizationId: v as Id<"organizations"> })}
+                    >
+                      <SelectTrigger className="h-11 rounded-xl border border-border bg-secondary/30 px-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all">
+                        <SelectValue placeholder="Select organization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {organizations?.map((org: any) => (
+                          <SelectItem key={org._id} value={org._id}>
+                            {org.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -410,7 +434,7 @@ export default function ApplicationsPage() {
                   </Button>
                   <Button
                     onClick={() => setAddStep(2)}
-                    disabled={!newApp.name.trim()}
+                    disabled={!newApp.name.trim() || !newApp.organizationId}
                     className="rounded-xl px-6 h-11 gap-2 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     Continue
