@@ -75,3 +75,31 @@ export const sendMessage = mutation({
         return messageId;
     },
 });
+
+export const getUserContext = query({
+    args: { userId: v.string() },
+    handler: async (ctx, args) => {
+        const apps = await ctx.db
+            .query("applications")
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
+            .collect();
+
+        const policies = await ctx.db
+            .query("riskPolicies")
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
+            .collect();
+
+        // Limit tickets for brevity in the prompt
+        const recentTickets = await ctx.db
+            .query("supportTickets")
+            .withIndex("by_user", (q) => q.eq("userId", args.userId))
+            .order("desc")
+            .take(5);
+
+        return {
+            applications: apps,
+            riskPolicies: policies,
+            recentTickets: recentTickets
+        };
+    },
+});

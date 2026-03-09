@@ -21,6 +21,7 @@ class CallRequest(BaseModel):
 class ChatRequest(BaseModel):
     ticket_id: str
     message: str
+    user_id: str
 
 # Config & Credentials
 # Use environment variables for secure keys
@@ -77,12 +78,29 @@ async def trigger_ai_chat(request: ChatRequest):
     In a full implementation, this would also write the response back to Convex.
     """
     try:
+        user_context_str = "No specific context available."
+        if "mock" not in CONVEX_URL and request.user_id:
+            try:
+                ctx_data = convex_client.query("support:getUserContext", {"userId": request.user_id})
+                user_context_str = str(ctx_data)
+            except Exception as e:
+                print(f"Error fetching context: {e}")
+
         prompt = f"""
-        You are the AegisAuth Support Assistant. The user has sent the following message:
+        You are the highly professional AegisAuth Support Assistant. The user's official complaint is:
         "{request.message}"
         
-        Provide a concise, helpful troubleshooting response.
-        If it seems like a critical security issue or they ask for a human, tell them an agent will be with them shortly.
+        Please use the following verified system datastore context about this specific user's account to provide a highly personalized, accurate response. Do NOT advise them on anything that contradicts their specific data below. Do NOT reference data of other users.
+        
+        USER DATASTORE CONTEXT:
+        {user_context_str}
+        
+        CRITICAL FORMATTING INSTRUCTIONS:
+        Your response MUST be highly structured and systematic to be easily readable by the user.
+        1. Always acknowledge their complaint nicely.
+        2. Give advice strictly using **Markdown Bullet Points**. Do not write long paragraphs.
+        3. Use **bold text** (`**like this**`) to aggressively highlight important keywords, system names, file paths, or critical warnings so the user's eyes are easily drawn to them.
+        4. If it seems like a critical security issue or they ask for a human, prominently tell them an agent will be with them shortly.
         """
         response = model.generate_content(prompt)
         ai_text = response.text
