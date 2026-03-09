@@ -3,6 +3,9 @@ from pydantic import BaseModel
 import os
 from twilio.rest import Client
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Setup Router
 router = APIRouter(prefix="/api/v1/support", tags=["Support Center"])
