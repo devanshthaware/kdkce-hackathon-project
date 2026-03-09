@@ -222,12 +222,15 @@ export const getAnalytics = query({
             untrusted: dayStats[day].untrusted,
         }));
 
-        const hourlyRiskDist = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"].map(hour => ({
-            hour,
-            low: Math.floor(Math.random() * baseVolume * 0.6) + (sessions.length > 0 ? 1 : 0),
-            medium: Math.floor(Math.random() * baseVolume * 0.2),
-            high: Math.floor(Math.random() * baseVolume * 0.1),
-        }));
+        const hourlyRiskDist = Array.from({ length: 24 }, (_, i) => {
+            const hour = i.toString().padStart(2, '0') + ":00";
+            return {
+                hour,
+                low: Math.floor(Math.random() * baseVolume * 0.4) + (sessions.length > 0 ? 1 : 0),
+                medium: Math.floor(Math.random() * baseVolume * 0.15),
+                high: Math.floor(Math.random() * baseVolume * 0.05),
+            };
+        });
 
         return {
             riskDist,

@@ -38,7 +38,7 @@ export default function RiskPanel() {
     CRITICAL: "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse",
   };
 
-  const badgeColor = levelStyles[level] || levelStyles.LOW;
+  const badgeColor = levelStyles[level as keyof typeof levelStyles] || levelStyles.LOW;
 
   return (
     <Card className="overflow-hidden border-border/50 bg-card/30 backdrop-blur-md">

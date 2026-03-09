@@ -79,14 +79,56 @@ export default function AttackSimulator() {
             status: risk.risk_level.toLowerCase()
           });
         }
-      } catch (e) {
-        addLog("ERROR", `Simulation engine fault: ${e instanceof Error ? e.message : "Network Err"}`);
+      } catch (e: any) {
+        // Network/connection error – ML backend is likely offline.
+        // Fall back to a deterministic local risk score so the demo keeps working.
+        const isNetworkError = e?.code === "ERR_NETWORK" || e?.message?.includes("Network Error") || e?.message?.includes("ECONNREFUSED");
+
+        if (isNetworkError) {
+          addLog("WARN", `ML backend offline. Using local risk evaluation.`);
+
+          // Compute a local score based on how many dangerous flags are active
+          const dangerWeights: Record<SimFlag, number> = {
+            apiBurst: 0.25,
+            privilegeEscalation: 0.40,
+            sensitiveRoute: 0.20,
+            tokenReplay: 0.35,
+            dataDownloadSpike: 0.30,
+          };
+          const rawScore = (Object.keys(next) as SimFlag[])
+            .filter(k => next[k])
+            .reduce((acc, k) => acc + dangerWeights[k], 0.05);
+          const score = Math.min(rawScore, 0.99);
+          const level = score >= 0.85 ? "CRITICAL" : score >= 0.60 ? "HIGH" : score >= 0.35 ? "MEDIUM" : "LOW";
+
+          const fallbackRisk = {
+            risk_score: score,
+            risk_level: level as any,
+            components: { local: score },
+            timestamp: Date.now(),
+          };
+
+          setRisk(fallbackRisk);
+          addRiskToTimeline(fallbackRisk);
+          addLog("SECURITY", `Local eval → ${level} (${(score * 100).toFixed(0)}%)`);
+
+          if (sessionId) {
+            await updateSessionRisk({
+              sessionId: sessionId as any,
+              riskScore: score,
+              status: level.toLowerCase(),
+            });
+          }
+        } else {
+          addLog("ERROR", `Simulation engine fault: ${e instanceof Error ? e.message : "Unknown error"}`);
+        }
       } finally {
         setLoading(false);
       }
     },
     [flags, isLocked, setRisk, addRiskToTimeline, addLog, user, sessionId, updateSessionRisk]
   );
+
 
   return (
     <Card className="bg-slate-900/40 border-white/10 backdrop-blur-xl shadow-2xl">

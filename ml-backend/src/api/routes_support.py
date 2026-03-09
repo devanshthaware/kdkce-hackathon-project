@@ -1,14 +1,20 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 import os
-from twilio.rest import Client
 import google.generativeai as genai
 from dotenv import load_dotenv
-from convex import ConvexClient
 
 load_dotenv()
-CONVEX_URL = os.getenv("NEXT_PUBLIC_CONVEX_URL", "mock_url")
-convex_client = ConvexClient(CONVEX_URL)
+CONVEX_URL = os.getenv("NEXT_PUBLIC_CONVEX_URL", "")
+
+# Lazy init – ConvexClient requires a valid absolute URL
+try:
+    from convex import ConvexClient
+    convex_client = ConvexClient(CONVEX_URL) if CONVEX_URL.startswith("http") else None
+except Exception as _e:
+    print(f"[routes_support] ConvexClient unavailable: {_e}")
+    convex_client = None
+
 
 # Setup Router
 router = APIRouter(prefix="/api/v1/support", tags=["Support Center"])
@@ -24,15 +30,13 @@ class ChatRequest(BaseModel):
     user_id: str
 
 # Config & Credentials
-# Use environment variables for secure keys
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "mock_sid")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "mock_token")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "+1234567890")
 ELEVENLABS_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "mock_agent")
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", "mock_gemini_key"))
-# Using user requested gemini-2.5-flash
-model = genai.GenerativeModel('gemini-2.5-flash') 
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 
 def initiate_twilio_call(to_phone: str):
@@ -43,19 +47,27 @@ def initiate_twilio_call(to_phone: str):
     if "mock" in TWILIO_ACCOUNT_SID:
         print(f"[MOCK] Twilio Call initiated to {to_phone} using ElevenLabs Agent {ELEVENLABS_AGENT_ID}")
         return {"status": "mock_success", "call_sid": "CA123456789 mock"}
-        
+
     try:
+        # Lazy import - only needed if real Twilio credentials are configured
+        try:
+            from twilio.rest import Client
+        except ImportError:
+            raise HTTPException(status_code=501, detail="Twilio not installed. Run: pip install twilio")
+
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        # In a real integration, the URL would point to TwiML that connects a WebSocket to ElevenLabs
         call = client.calls.create(
             to=to_phone,
             from_=TWILIO_PHONE_NUMBER,
-            url="http://demo.twilio.com/docs/voice.xml" # Placeholder TwiML
+            url="http://demo.twilio.com/docs/voice.xml"
         )
         return {"status": "success", "call_sid": call.sid}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Twilio error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to initiate voice call")
+
 
 
 @router.post("/call")

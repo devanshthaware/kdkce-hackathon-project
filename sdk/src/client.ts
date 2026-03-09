@@ -77,12 +77,6 @@ export class AegisAuth {
         "User-Agent": "aegis-auth-sdk/1.0.0",
       },
     });
-
-    this.logger.log("AegisAuth client initialized", {
-      endpoint: this.endpoint,
-      autoMonitor: this.autoMonitor,
-      monitorInterval: this.monitorInterval,
-    });
   }
 
   /**

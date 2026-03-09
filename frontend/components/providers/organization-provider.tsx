@@ -1,28 +1,32 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
-import { useQuery } from "convex/react"
+import { useQuery, useConvexAuth } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 
 interface OrganizationContextType {
   activeOrganization: Id<"organizations"> | null;
   setActiveOrganization: (id: Id<"organizations">) => void;
-  organizations: any[] | undefined;
+  organizations: any[] | null | undefined;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined)
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
-  const organizations = useQuery(api.organizations.getUserOrganizations)
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const organizations = useQuery(
+    api.organizations.getUserOrganizations,
+    isAuthenticated ? {} : "skip"
+  )
   const [activeOrganization, setActiveOrganization] = useState<Id<"organizations"> | null>(null)
 
   useEffect(() => {
     // Attempt to select the first active organization if none selected yet
-    if (organizations && organizations.length > 0 && !activeOrganization) {
+    if (isAuthenticated && organizations && organizations.length > 0 && !activeOrganization) {
       setActiveOrganization(organizations[0]._id as Id<"organizations">)
     }
-  }, [organizations, activeOrganization])
+  }, [isAuthenticated, organizations, activeOrganization])
 
   return (
     <OrganizationContext.Provider value={{ activeOrganization, setActiveOrganization, organizations }}>
