@@ -170,8 +170,10 @@ export function Topbar() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="justify-center py-2.5 text-xs text-primary">
-                View all notifications
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/sessions" className="w-full justify-center py-2.5 text-xs text-primary cursor-pointer">
+                  View all notifications
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

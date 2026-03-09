@@ -54,22 +54,6 @@ export function RiskChart() {
         <CardTitle className="text-base font-semibold tracking-tight">Risk Distribution (24h)</CardTitle>
       </CardHeader>
       <CardContent>
-        <svg width="0" height="0" className="hidden">
-          <defs>
-            <linearGradient id="riskLowDash" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="oklch(0.65 0.2 150)" stopOpacity={1} />
-              <stop offset="100%" stopColor="oklch(0.55 0.15 155)" stopOpacity={0.8} />
-            </linearGradient>
-            <linearGradient id="riskMediumDash" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="oklch(0.8 0.15 80)" stopOpacity={1} />
-              <stop offset="100%" stopColor="oklch(0.7 0.12 75)" stopOpacity={0.8} />
-            </linearGradient>
-            <linearGradient id="riskHighDash" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="oklch(0.6 0.22 25)" stopOpacity={1} />
-              <stop offset="100%" stopColor="oklch(0.5 0.18 20)" stopOpacity={0.8} />
-            </linearGradient>
-          </defs>
-        </svg>
         <div className="h-64">
           {!analytics ? (
             <div className="flex h-full items-center justify-center text-muted-foreground italic text-sm">
@@ -81,6 +65,20 @@ export function RiskChart() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} barSize={10} barGap={4}>
+                <defs>
+                  <linearGradient id="riskLowDash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.65 0.2 150)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="oklch(0.55 0.15 155)" stopOpacity={0.8} />
+                  </linearGradient>
+                  <linearGradient id="riskMediumDash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.8 0.15 80)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="oklch(0.7 0.12 75)" stopOpacity={0.8} />
+                  </linearGradient>
+                  <linearGradient id="riskHighDash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.6 0.22 25)" stopOpacity={1} />
+                    <stop offset="100%" stopColor="oklch(0.5 0.18 20)" stopOpacity={0.8} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis
                   dataKey="hour"
