@@ -73,7 +73,6 @@ coverage/
 htmlcov/
 
 # ML / large files
-weights/
 ml-backend/data/processed/
 
 # Caches
