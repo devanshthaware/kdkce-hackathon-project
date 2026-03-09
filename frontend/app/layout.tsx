@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import ConvexClientProvider from '@/components/ConvexClientProvider'
+import { OrganizationProvider } from '@/components/providers/organization-provider'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -55,7 +56,9 @@ export default function RootLayout({
         >
           <ClerkProvider>
             <ConvexClientProvider>
-              {children}
+              <OrganizationProvider>
+                {children}
+              </OrganizationProvider>
             </ConvexClientProvider>
           </ClerkProvider>
           <Analytics />

@@ -4,8 +4,6 @@ import { DashboardSidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { SecurityPopup } from "@/components/support/SecurityPopup"
 import { SeedWrapper } from "@/components/dashboard/seed-wrapper"
-import { OrganizationProvider } from "@/components/providers/organization-provider"
-
 export default async function DashboardLayout({
   children,
 }: {
@@ -30,16 +28,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <OrganizationProvider>
-      <div className="min-h-screen bg-background">
-        <DashboardSidebar />
-        <div className="transition-all duration-300 lg:pl-64">
-          <Topbar />
-          <main className="p-6">{children}</main>
-          <SecurityPopup />
-          <SeedWrapper />
-        </div>
+    <div className="min-h-screen bg-background">
+      <DashboardSidebar />
+      <div className="transition-all duration-300 lg:pl-64">
+        <Topbar />
+        <main className="p-6">{children}</main>
+        <SecurityPopup />
+        <SeedWrapper />
       </div>
-    </OrganizationProvider>
+    </div>
   )
 }
