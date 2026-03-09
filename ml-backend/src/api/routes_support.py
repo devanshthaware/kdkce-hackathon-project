@@ -4,8 +4,11 @@ import os
 from twilio.rest import Client
 import google.generativeai as genai
 from dotenv import load_dotenv
+from convex import ConvexClient
 
 load_dotenv()
+CONVEX_URL = os.getenv("NEXT_PUBLIC_CONVEX_URL", "mock_url")
+convex_client = ConvexClient(CONVEX_URL)
 
 # Setup Router
 router = APIRouter(prefix="/api/v1/support", tags=["Support Center"])
@@ -84,8 +87,15 @@ async def trigger_ai_chat(request: ChatRequest):
         response = model.generate_content(prompt)
         ai_text = response.text
         
-        # Here we would normally use the convex python client to mutation/insert the message back into the Convex DB.
-        # convex_client.mutation("support:sendMessage", ticketId=request.ticket_id, senderId="system", senderRole="ai", content=ai_text, isAiGenerated=True)
+        # Write the response back to Convex DB.
+        if "mock" not in CONVEX_URL:
+            convex_client.mutation("support:sendMessage", {
+                "ticketId": request.ticket_id,
+                "senderId": "system",
+                "senderRole": "ai",
+                "content": ai_text,
+                "isAiGenerated": True
+            })
         
         return {"status": "success", "response": ai_text}
     except Exception as e:

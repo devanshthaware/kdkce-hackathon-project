@@ -17,12 +17,7 @@ export function SupportChat() {
     const createTicket = useMutation(api.support.createTicket);
     const sendMessage = useMutation(api.support.sendMessage);
 
-    // Load the first open ticket if available
-    useEffect(() => {
-        if (tickets && tickets.length > 0) {
-            setTicketId(tickets[0]._id);
-        }
-    }, [tickets]);
+    // Removed useEffect to ensure a fresh session on load
 
     const messages = useQuery(
         api.support.getMessages,
@@ -107,8 +102,8 @@ export function SupportChat() {
                                     </div>
                                     <div
                                         className={`p-3 rounded-xl text-sm ${isUser
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-muted text-foreground"
+                                            ? "bg-primary text-primary-foreground"
+                                            : "bg-muted text-foreground"
                                             }`}
                                     >
                                         {msg.content}
