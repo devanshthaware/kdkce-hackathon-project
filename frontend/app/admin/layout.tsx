@@ -12,16 +12,14 @@ export default function AdminLayout({
 }) {
   const { isLoaded, user } = useUser()
 
-  // Protection logic (Step 13)
-  // In a real app, you'd check user.publicMetadata.role === "admin"
-  // For this demo/task, we'll allow access if role is admin OR if we're in dev mode
-  // and the user is logged in.
   if (isLoaded && user) {
-    const isAdmin = user.publicMetadata?.role === "admin"
+    const isAdmin = 
+      user.publicMetadata?.role === "admin" || 
+      user.primaryEmailAddress?.emailAddress === "devanshthaware0@gmail.com";
+
     if (!isAdmin) {
       console.log("User is not an admin, redirecting to dashboard")
-      // redirect("/dashboard") 
-      // Uncomment the redirect in production
+      redirect("/dashboard") 
     }
   } else if (isLoaded && !user) {
     redirect("/auth")

@@ -88,4 +88,8 @@ convex/_generated/
 # Local settings
 /local.env
 
+<<<<<<< HEAD
 # Keep lockfiles (e.g., pnpm-lock.yaml) in repo
+=======
+# Keep lockfiles (e.g., pnpm-lock.yaml) in repo
+>>>>>>> main

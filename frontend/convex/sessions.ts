@@ -5,24 +5,70 @@ import { api } from "./_generated/api";
 export const list = query({
     args: { applicationId: v.optional(v.id("applications")) },
     handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const userId = identity.subject;
+
+        // Fetch owned applications
+        const apps = await ctx.db
+            .query("applications")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .collect();
+
+        const appIds = new Set(apps.map((app) => app._id.toString()));
+
         if (args.applicationId) {
+            // Verify ownership explicitly if requesting a specific app
+            if (!appIds.has(args.applicationId.toString())) {
+                throw new Error("Unauthorized access to this application");
+            }
+
             return await ctx.db
                 .query("sessions")
                 .withIndex("by_application", (q) => q.eq("applicationId", args.applicationId!))
                 .order("desc")
                 .collect();
         }
-        // For general dashboard, we might want to list all sessions user has access to
-        // This requires a join or filtering, for now just returning all (simplified)
-        return await ctx.db.query("sessions").order("desc").collect();
+
+        // Fetch all sessions for owned apps
+        let sessions = [];
+        for (const app of apps) {
+            const appSessions = await ctx.db
+                .query("sessions")
+                .withIndex("by_application", (q) => q.eq("applicationId", app._id))
+                .order("desc")
+                .take(50); // limit per app
+            sessions.push(...appSessions);
+        }
+
+        // Return combined sessions sorted locally
+        return sessions.sort((a, b) => b.loginTime - a.loginTime).slice(0, 100);
     },
 });
 
 export const getStats = query({
     args: {},
     handler: async (ctx) => {
-        const sessions = await ctx.db.query("sessions").collect();
-        const apps = await ctx.db.query("applications").collect();
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return { totalSessions: 0, highRiskAlerts: 0, activeApps: 0, avgRiskScore: 0 };
+
+        const userId = identity.subject;
+
+        // Fetch owned applications
+        const apps = await ctx.db
+            .query("applications")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .collect();
+
+        let sessions = [];
+        for (const app of apps) {
+            const appSessions = await ctx.db
+                .query("sessions")
+                .withIndex("by_application", (q) => q.eq("applicationId", app._id))
+                .collect();
+            sessions.push(...appSessions);
+        }
 
         const highRisk = sessions.filter(s => s.status === "suspicious" || s.status === "blocked").length;
         const avgRisk = sessions.length > 0
@@ -41,31 +87,51 @@ export const getStats = query({
 export const getAnalytics = query({
     args: {},
     handler: async (ctx) => {
-        const sessions = await ctx.db.query("sessions").collect();
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) throw new Error("Unauthorized");
+
+        const userId = identity.subject;
+
+        // Fetch owned applications
+        const apps = await ctx.db
+            .query("applications")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .collect();
+
+        let sessions = [];
+        for (const app of apps) {
+            const appSessions = await ctx.db
+                .query("sessions")
+                .withIndex("by_application", (q) => q.eq("applicationId", app._id))
+                .collect();
+            sessions.push(...appSessions);
+        }
 
         // Mocking some time-based distribution for now since we don't have historical data in the schema yet
-        // In a real app, we'd query by timestamp
+        // We tie the volumes to actual valid user session count for realism
+        const baseVolume = sessions.length > 0 ? (sessions.length / 10) : 0; 
+
         const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         const riskDist = days.map(day => ({
             day,
-            low: Math.floor(Math.random() * 50) + 100,
-            medium: Math.floor(Math.random() * 30) + 40,
-            high: Math.floor(Math.random() * 15) + 5,
-            critical: Math.floor(Math.random() * 5),
+            low: Math.floor(Math.random() * baseVolume * 0.7) + (sessions.length > 0 ? 2 : 0),
+            medium: Math.floor(Math.random() * baseVolume * 0.2) + (sessions.length > 0 ? 1 : 0),
+            high: Math.floor(Math.random() * baseVolume * 0.08),
+            critical: Math.floor(Math.random() * baseVolume * 0.02),
         }));
 
         const deviceTrust = days.map(day => ({
             day,
-            trusted: 80 + Math.floor(Math.random() * 15),
-            unknown: 5 + Math.floor(Math.random() * 10),
-            untrusted: Math.floor(Math.random() * 5),
+            trusted: Math.floor(baseVolume * 0.85) + Math.floor(Math.random() * 5),
+            unknown: Math.floor(baseVolume * 0.1) + Math.floor(Math.random() * 2),
+            untrusted: Math.floor(baseVolume * 0.05),
         }));
 
         const hourlyRiskDist = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"].map(hour => ({
             hour,
-            low: Math.floor(Math.random() * 100),
-            medium: Math.floor(Math.random() * 40),
-            high: Math.floor(Math.random() * 15),
+            low: Math.floor(Math.random() * baseVolume * 0.6),
+            medium: Math.floor(Math.random() * baseVolume * 0.2),
+            high: Math.floor(Math.random() * baseVolume * 0.1),
         }));
 
         return {
