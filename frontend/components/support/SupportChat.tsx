@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
-import { Send, Loader2, User, ShieldCheck, HelpCircle } from "lucide-react";
+import { Send, Loader2, User, ShieldCheck, HelpCircle, Mic, Volume2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -12,17 +13,14 @@ export function SupportChat() {
     const { user } = useUser();
     const [ticketId, setTicketId] = useState<Id<"supportTickets"> | null>(null);
     const [inputMessage, setInputMessage] = useState("");
+    const [isRecording, setIsRecording] = useState(false);
+    const [isAITyping, setIsAITyping] = useState(false);
 
     const tickets = useQuery(api.support.getTickets, user?.id ? { userId: user.id } : "skip");
     const createTicket = useMutation(api.support.createTicket);
     const sendMessage = useMutation(api.support.sendMessage);
 
-    // Load the first open ticket if available
-    useEffect(() => {
-        if (tickets && tickets.length > 0) {
-            setTicketId(tickets[0]._id);
-        }
-    }, [tickets]);
+    // Removed useEffect to ensure a fresh session on load
 
     const messages = useQuery(
         api.support.getMessages,
@@ -41,6 +39,57 @@ export function SupportChat() {
         setTicketId(newTicketId);
     };
 
+    const startRecording = () => {
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Your browser does not support Speech Recognition.");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => setIsRecording(true);
+
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setInputMessage(prev => prev ? `${prev} ${transcript}` : transcript);
+        };
+
+        recognition.onerror = (event: any) => {
+            console.error("Speech recognition error", event.error);
+            setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+            setIsRecording(false);
+        };
+
+        recognition.start();
+    };
+
+    const readAloud = (text: string) => {
+        if ('speechSynthesis' in window) {
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+
+            // Strip markdown before reading (basic stripping for TTS)
+            const cleanText = text.replace(/[*_#`~]/g, '');
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+
+            // Optionally select a specific voice if desired
+            // const voices = window.speechSynthesis.getVoices();
+            // utterance.voice = voices.find(v => v.name.includes('Google US English')) || null;
+
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("Your browser does not support text-to-speech.");
+        }
+    };
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputMessage.trim() || !ticketId || !user?.id) return;
@@ -56,11 +105,14 @@ export function SupportChat() {
         });
 
         // Dummy AI Response Trigger (in reality, backend takes over)
+        setIsAITyping(true);
         fetch("http://localhost:8000/api/v1/support/ai-chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ticket_id: ticketId, message: messageText })
-        }).catch(e => console.error("Failed to trigger AI:", e));
+            body: JSON.stringify({ ticket_id: ticketId, message: messageText, user_id: user.id })
+        }).catch(e => console.error("Failed to trigger AI:", e)).finally(() => {
+            setIsAITyping(false);
+        });
     };
 
     if (!user) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
@@ -107,13 +159,24 @@ export function SupportChat() {
                                     </div>
                                     <div
                                         className={`p-3 rounded-xl text-sm ${isUser
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-muted text-foreground"
+                                            ? "bg-primary text-primary-foreground"
+                                            : "bg-muted text-foreground"
                                             }`}
                                     >
-                                        {msg.content}
-                                        <div className={`text-[10px] mt-1 ${isUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {isUser ? (
+                                            msg.content
+                                        ) : (
+                                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                            </div>
+                                        )}
+                                        <div className={`flex items-center gap-2 mt-1 ${isUser ? "justify-end text-primary-foreground/70" : "text-muted-foreground"} text-[10px]`}>
+                                            <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            {!isUser && (
+                                                <button onClick={() => readAloud(msg.content)} className="hover:text-primary transition-colors" title="Read Aloud">
+                                                    <Volume2 className="size-3 cursor-pointer" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -121,6 +184,22 @@ export function SupportChat() {
                         );
                     })
                 )}
+
+                {isAITyping && (
+                    <div className="flex justify-start">
+                        <div className="flex gap-2 max-w-[80%] flex-row">
+                            <div className="size-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                                <ShieldCheck className="size-4 text-primary" />
+                            </div>
+                            <div className="p-4 rounded-xl text-sm bg-muted text-foreground flex items-center gap-1">
+                                <span className="size-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                <span className="size-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                <span className="size-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div ref={messagesEndRef} />
             </div>
 
@@ -134,6 +213,9 @@ export function SupportChat() {
                         onChange={(e) => setInputMessage(e.target.value)}
                         disabled={!ticketId}
                     />
+                    <Button type="button" onClick={startRecording} disabled={!ticketId || isRecording} variant="outline" size="icon">
+                        <Mic className={`size-4 ${isRecording ? 'text-red-500 animate-pulse' : ''}`} />
+                    </Button>
                     <Button type="submit" disabled={!ticketId || !inputMessage.trim()} size="icon">
                         <Send className="size-4" />
                     </Button>
