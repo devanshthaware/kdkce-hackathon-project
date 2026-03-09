@@ -24,47 +24,67 @@ class ChatRequest(BaseModel):
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "mock_sid")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "mock_token")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "+1234567890")
-ELEVENLABS_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "mock_agent")
+import requests
+from dotenv import load_dotenv
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", "mock_gemini_key"))
 # Using user requested gemini-2.5-flash
 model = genai.GenerativeModel('gemini-2.5-flash') 
 
 
-def initiate_twilio_call(to_phone: str):
+def initiate_elevenlabs_call(to_phone: str):
     """
-    Mock or real Twilio call function.
-    Connects to ElevenLabs conversational AI via Twilio streams.
+    Initiates an outbound call using ElevenLabs API.
     """
-    if "mock" in TWILIO_ACCOUNT_SID:
-        print(f"[MOCK] Twilio Call initiated to {to_phone} using ElevenLabs Agent {ELEVENLABS_AGENT_ID}")
-        return {"status": "mock_success", "call_sid": "CA123456789 mock"}
+    # Force dotenv to reload to ensure we have the latest keys from ml-backend/.env
+    load_dotenv(override=True)
+    
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+    ELEVENLABS_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "mock_agent")
+    ELEVENLABS_PHONE_ID = os.getenv("ELEVENLABS_PHONE_ID", "mock_phone_id")
+    
+    if "mock" in ELEVENLABS_AGENT_ID or not ELEVENLABS_API_KEY:
+        print(f"[MOCK] ElevenLabs Call initiated to {to_phone} using Agent {ELEVENLABS_AGENT_ID} and Phone ID {ELEVENLABS_PHONE_ID}")
+        return {"status": "mock_success"}
         
     try:
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        # In a real integration, the URL would point to TwiML that connects a WebSocket to ElevenLabs
-        call = client.calls.create(
-            to=to_phone,
-            from_=TWILIO_PHONE_NUMBER,
-            url="http://demo.twilio.com/docs/voice.xml" # Placeholder TwiML
-        )
-        return {"status": "success", "call_sid": call.sid}
+        # Note: The precise endpoint for creating an outbound call in ElevenLabs V1 API is:
+        # POST /v1/convai/twilio/outbound-call
+        url = "https://api.elevenlabs.io/v1/convai/twilio/outbound-call"
+        payload = {
+            "agent_id": ELEVENLABS_AGENT_ID,
+            "agent_phone_number_id": ELEVENLABS_PHONE_ID,
+            "to_number": to_phone
+        }
+        
+        headers = {
+            "xi-api-key": ELEVENLABS_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        return {"status": "success", "data": response.json()}
     except Exception as e:
-        print(f"Twilio error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to initiate voice call")
+        print(f"ElevenLabs API error: {str(e)}")
+        if isinstance(e, requests.exceptions.HTTPError):
+            print(f"Response Body: {e.response.text}")
+        raise HTTPException(status_code=500, detail="Failed to initiate voice call via ElevenLabs")
 
 
 @router.post("/call")
 async def trigger_voice_support(request: CallRequest, background_tasks: BackgroundTasks):
     """
-    Initiates a voice call to the user via Twilio & ElevenLabs.
+    Initiates a voice call to the user via ElevenLabs Outbound Calling API.
     """
     try:
         # Run Call in Background to avoid blocking the API response
-        background_tasks.add_task(initiate_twilio_call, request.phone_number)
+        background_tasks.add_task(initiate_elevenlabs_call, request.phone_number)
         return {"status": "Call initiated", "phone": request.phone_number}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/ai-chat")

@@ -11,8 +11,13 @@ export function VoiceCallButton() {
     const [isCalling, setIsCalling] = useState(false);
     const [callStatus, setCallStatus] = useState<"idle" | "connecting" | "active">("idle");
 
+    const [phoneNumber, setPhoneNumber] = useState(user?.primaryPhoneNumber?.phoneNumber || "");
+
     const initiateCall = async () => {
-        if (!user) return;
+        if (!user || !phoneNumber) {
+            toast.error("Please enter a valid phone number.");
+            return;
+        }
         setIsCalling(true);
         setCallStatus("connecting");
 
@@ -22,7 +27,7 @@ export function VoiceCallButton() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     user_id: user.id,
-                    phone_number: user.primaryPhoneNumber?.phoneNumber || "+1234567890", // fallback
+                    phone_number: phoneNumber,
                 }),
             });
 
@@ -47,21 +52,31 @@ export function VoiceCallButton() {
     };
 
     return (
-        <Button
-            onClick={initiateCall}
-            disabled={isCalling}
-            variant={callStatus === "active" ? "secondary" : "default"}
-            size="lg"
-            className="w-full sm:w-auto"
-        >
-            {callStatus === "connecting" ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : callStatus === "active" ? (
-                <PhoneCall className="mr-2 size-4 animate-pulse text-green-500" />
-            ) : (
-                <Phone className="mr-2 size-4" />
-            )}
-            {callStatus === "connecting" ? "Connecting..." : callStatus === "active" ? "Call in Progress" : "Call Support (Voice)"}
-        </Button>
+        <div className="flex flex-col gap-3 w-full sm:w-auto">
+            <input
+                type="tel"
+                placeholder="Enter phone number (e.g. +1234567890)"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                disabled={isCalling}
+            />
+            <Button
+                onClick={initiateCall}
+                disabled={isCalling || !phoneNumber}
+                variant={callStatus === "active" ? "secondary" : "default"}
+                size="lg"
+                className="w-full"
+            >
+                {callStatus === "connecting" ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : callStatus === "active" ? (
+                    <PhoneCall className="mr-2 size-4 animate-pulse text-green-500" />
+                ) : (
+                    <Phone className="mr-2 size-4" />
+                )}
+                {callStatus === "connecting" ? "Connecting..." : callStatus === "active" ? "Call in Progress" : "Call Support (Voice)"}
+            </Button>
+        </div>
     );
 }
