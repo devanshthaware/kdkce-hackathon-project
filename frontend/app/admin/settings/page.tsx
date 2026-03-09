@@ -12,33 +12,33 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-3xl font-bold text-slate-100">Platform Settings</h1>
-        <p className="text-slate-400 mt-1">Global configuration and administrative controls.</p>
+        <h1 className="text-3xl font-bold text-foreground">Platform Settings</h1>
+        <p className="text-muted-foreground mt-1">Global configuration and administrative controls.</p>
       </div>
 
       <div className="grid gap-6">
         {/* Security Thresholds */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="size-5 text-emerald-400" />
               Security Thresholds
             </CardTitle>
-            <CardDescription className="text-slate-500 text-xs">Configure how the system reacts to risk scores.</CardDescription>
+            <CardDescription className="text-xs">Configure how the system reacts to risk scores.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label className="text-slate-300">Default Block Threshold</Label>
+                <Label>Default Block Threshold</Label>
                 <span className="font-mono text-emerald-400 font-bold">85</span>
               </div>
               <Slider defaultValue={[85]} max={100} step={1} className="py-2" />
-              <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Any session above this score is automatically blocked.</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Any session above this score is automatically blocked.</p>
             </div>
             
-            <div className="space-y-4 pt-4 border-t border-slate-800">
+            <div className="space-y-4 pt-4 border-t border-border">
               <div className="flex justify-between items-center">
-                <Label className="text-slate-300">MFA Challenge Threshold</Label>
+                <Label>MFA Challenge Threshold</Label>
                 <span className="font-mono text-yellow-400 font-bold">60</span>
               </div>
               <Slider defaultValue={[60]} max={100} step={1} className="py-2" />
@@ -47,7 +47,7 @@ export default function AdminSettings() {
         </Card>
 
         {/* Monitoring Interval */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="size-5 text-emerald-400" />
@@ -57,18 +57,18 @@ export default function AdminSettings() {
           <CardContent className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-slate-300">Session Check Interval (sec)</Label>
-                <Input type="number" defaultValue={30} className="bg-slate-950 border-slate-800 text-slate-100" />
+                <Label>Session Check Interval (sec)</Label>
+                <Input type="number" defaultValue={30} />
               </div>
               <div className="space-y-2">
-                <Label className="text-slate-300">Token Expiry (minutes)</Label>
-                <Input type="number" defaultValue={60} className="bg-slate-950 border-slate-800 text-slate-100" />
+                <Label>Token Expiry (minutes)</Label>
+                <Input type="number" defaultValue={60} />
               </div>
             </div>
-            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-4 border-t border-border">
               <div className="space-y-0.5">
-                <Label className="text-slate-200">Continuous Monitoring</Label>
-                <p className="text-xs text-slate-500">Enable real-time telemetry for all active sessions.</p>
+                <Label>Continuous Monitoring</Label>
+                <p className="text-xs text-muted-foreground">Enable real-time telemetry for all active sessions.</p>
               </div>
               <Switch defaultChecked />
             </div>
@@ -76,7 +76,7 @@ export default function AdminSettings() {
         </Card>
 
         {/* API & Rate Limits */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Zap className="size-5 text-emerald-400" />
@@ -85,12 +85,12 @@ export default function AdminSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-slate-300">Global Rate Limit (req/min)</Label>
-              <Input type="number" defaultValue={10000} className="bg-slate-950 border-slate-800 text-slate-100" />
+              <Label>Global Rate Limit (req/min)</Label>
+              <Input type="number" defaultValue={10000} />
             </div>
             <div className="space-y-2 pt-2">
-              <Label className="text-slate-300">Burst Allowances</Label>
-              <select className="w-full bg-slate-950 border-slate-800 text-slate-300 rounded-md p-2 text-sm outline-none focus:ring-1 focus:ring-emerald-500/20">
+              <Label>Burst Allowances</Label>
+              <select className="w-full bg-background border border-border text-foreground rounded-md p-2 text-sm outline-none focus:ring-1 focus:ring-emerald-500/20">
                 <option>Conservative (5%)</option>
                 <option>Standard (10%)</option>
                 <option>Aggressive (25%)</option>
@@ -100,7 +100,7 @@ export default function AdminSettings() {
         </Card>
 
         {/* Notifications */}
-        <Card className="bg-slate-900 border-slate-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="size-5 text-emerald-400" />
@@ -109,19 +109,19 @@ export default function AdminSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Critical Threat Email Webhooks</Label>
+              <Label>Critical Threat Email Webhooks</Label>
               <Switch defaultChecked />
             </div>
             <div className="flex items-center justify-between">
-              <Label className="text-slate-300">Slack Integration</Label>
+              <Label>Slack Integration</Label>
               <Switch />
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-          <Button variant="ghost" className="text-slate-400 hover:text-slate-100 hover:bg-slate-800">Discard</Button>
-          <Button className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-8">
+        <div className="flex justify-end gap-3 pt-4 border-t border-border">
+          <Button variant="ghost">Discard</Button>
+          <Button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8">
             <Save className="mr-2 h-4 w-4" />
             Save Configuration
           </Button>

@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
-import { Authenticated, Unauthenticated } from "convex/react"
 
 export function CTA() {
   return (
@@ -16,22 +15,12 @@ export function CTA() {
             Deploy adaptive authentication in minutes. Protect every session with continuous, context-aware risk intelligence.
           </p>
           <div className="mt-8">
-            <Unauthenticated>
-              <Button size="lg" asChild className="gap-2 rounded-xl px-8">
-                <Link href="/auth">
-                  Get Started
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </Unauthenticated>
-            <Authenticated>
-              <Button size="lg" asChild className="gap-2 rounded-xl px-8">
-                <Link href="/dashboard">
-                  Launch Dashboard
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </Authenticated>
+            <Button size="lg" asChild className="gap-2 rounded-xl px-8">
+              <Link href="/sign-up">
+                Get Started
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

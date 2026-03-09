@@ -3,11 +3,11 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Shield, ArrowRight, Play } from "lucide-react"
-import { Authenticated, Unauthenticated, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 export function Hero() {
-  const stats = useQuery(api.sessions.getStats)
+  const stats = useQuery(api.sessions.getStats, {})
 
   return (
     <section className="relative overflow-hidden">
@@ -27,22 +27,12 @@ export function Hero() {
             Zero-Trust. Context-Aware. Continuous Risk Intelligence. Protect every session, every action, in real time.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Unauthenticated>
-              <Button size="lg" asChild className="gap-2 rounded-xl px-8">
-                <Link href="/auth">
-                  Start Building Free
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </Unauthenticated>
-            <Authenticated>
-              <Button size="lg" asChild className="gap-2 rounded-xl px-8">
-                <Link href="/dashboard">
-                  Go to Dashboard
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </Authenticated>
+            <Button size="lg" asChild className="gap-2 rounded-xl px-8">
+              <Link href="/sign-up">
+                Start Building Free
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
           </div>
           <div className="mt-16 grid grid-cols-3 gap-8 text-center lg:gap-16">
             <div>

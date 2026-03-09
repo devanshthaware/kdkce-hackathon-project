@@ -40,8 +40,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-100">Platform Overview</h1>
-        <p className="text-slate-400 mt-1">High-level platform statistics and real-time security posture.</p>
+        <h1 className="text-3xl font-bold text-foreground">Platform Overview</h1>
+        <p className="text-muted-foreground mt-1">High-level platform statistics and real-time security posture.</p>
       </div>
 
       {/* Stats Grid */}
@@ -52,18 +52,17 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts Placeholder */}
-      <Card className="bg-slate-900 border-slate-800">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-slate-100">Risk Trend (Last 24h)</CardTitle>
+          <CardTitle className="text-lg font-semibold text-foreground">Risk Trend (Last 24h)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px] w-full bg-slate-950/50 rounded-lg border border-slate-800 flex items-center justify-center relative overflow-hidden group">
+          <div className="h-[300px] w-full bg-muted/50 rounded-lg border border-border flex items-center justify-center relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <span className="text-slate-600 font-mono text-sm">[ Risk Trend Graph Placeholder ]</span>
-            {/* Simple CSS-only graph line aesthetic */}
-            <div className="absolute bottom-1/4 left-0 right-0 h-px bg-slate-800" />
-            <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-800/50" />
-            <div className="absolute top-1/4 left-0 right-0 h-px bg-slate-800/30" />
+            <span className="text-muted-foreground font-mono text-sm">[ Risk Trend Graph Placeholder ]</span>
+            <div className="absolute bottom-1/4 left-0 right-0 h-px bg-border" />
+            <div className="absolute top-1/2 left-0 right-0 h-px bg-border/50" />
+            <div className="absolute top-1/4 left-0 right-0 h-px bg-border/30" />
           </div>
         </CardContent>
       </Card>
@@ -71,7 +70,7 @@ export default function AdminDashboard() {
       {/* Recent Threats Table */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-100">Recent Threat Logs</h2>
+          <h2 className="text-xl font-bold text-foreground">Recent Threat Logs</h2>
         </div>
         <AdminTable columns={columns} data={recentThreats ?? []} />
       </div>

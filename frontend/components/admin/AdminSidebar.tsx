@@ -20,12 +20,15 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { UserButton } from "@clerk/nextjs"
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 
 const menuItems = [
   { title: "Dashboard", icon: LayoutDashboard, url: "/admin/dashboard" },
@@ -43,11 +46,11 @@ export function AdminSidebar() {
   const pathname = usePathname()
 
   return (
-    <Sidebar className="border-slate-800 bg-slate-900 text-slate-300">
-      <SidebarHeader className="h-16 flex items-center px-6 border-b border-slate-800">
+    <Sidebar className="border-border bg-sidebar text-sidebar-foreground">
+      <SidebarHeader className="h-16 flex items-center px-6 border-b border-border">
         <Link href="/admin/dashboard" className="flex items-center gap-2">
           <Shield className="size-6 text-emerald-400" />
-          <span className="font-bold text-slate-100 italic tracking-tight">
+          <span className="font-bold text-foreground italic tracking-tight">
             AEGIS<span className="text-emerald-400">ADMIN</span>
           </span>
         </Link>
@@ -60,8 +63,8 @@ export function AdminSidebar() {
                 asChild
                 isActive={pathname === item.url}
                 className={`
-                  hover:bg-slate-800 hover:text-emerald-400 py-6
-                  ${pathname === item.url ? "bg-slate-800 text-emerald-400" : ""}
+                  hover:bg-sidebar-accent hover:text-emerald-400 py-6
+                  ${pathname === item.url ? "bg-sidebar-accent text-emerald-400" : ""}
                 `}
               >
                 <Link href={item.url} className="flex items-center gap-3">
@@ -73,8 +76,15 @@ export function AdminSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <Separator className="bg-slate-800" />
+      <Separator className="bg-border" />
+      <SidebarFooter className="p-4">
+        <div className="flex items-center justify-between">
+          <UserButton afterSignOutUrl="/" />
+          <AnimatedThemeToggler />
+        </div>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
 }
+

@@ -22,7 +22,7 @@ export default function MLModels() {
 
   const columns = [
     { header: "Model Name", accessor: "name" as const, className: "font-semibold" },
-    { header: "Version", accessor: "version" as const, className: "font-mono text-slate-500" },
+    { header: "Version", accessor: "version" as const, className: "font-mono text-muted-foreground" },
     { 
       header: "Status", 
       accessor: (item: any) => <StatusBadge status={item.status} /> 
@@ -48,15 +48,15 @@ export default function MLModels() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">ML Model Controls</h1>
-          <p className="text-slate-400 mt-1">Fine-tune the platforms intelligence by adjusting risk signal weights.</p>
+          <h1 className="text-3xl font-bold text-foreground">ML Model Controls</h1>
+          <p className="text-muted-foreground mt-1">Fine-tune the platforms intelligence by adjusting risk signal weights.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-slate-800 text-slate-300 hover:bg-slate-800">
+          <Button variant="outline">
             <RotateCcw className="mr-2 h-4 w-4" />
             Reset Defaults
           </Button>
-          <Button className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold">
+          <Button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
             <Save className="mr-2 h-4 w-4" />
             Apply Changes
           </Button>
@@ -68,7 +68,7 @@ export default function MLModels() {
           <AdminTable columns={columns} data={models ?? []} />
         </div>
 
-        <Card className="bg-slate-900 border-slate-800 h-fit">
+        <Card className="bg-card border-border h-fit">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Cpu className="size-4 text-emerald-400" />
@@ -77,21 +77,20 @@ export default function MLModels() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              <label className="text-sm font-medium text-slate-300">Minimum Risk Threshold</label>
+              <label className="text-sm font-medium text-foreground">Minimum Risk Threshold</label>
               <div className="flex gap-4">
                 <Input 
                   type="number" 
                   defaultValue={35} 
-                  className="bg-slate-950 border-slate-800 text-slate-100" 
                 />
-                <Button variant="outline" className="border-slate-800 shrink-0">Set</Button>
+                <Button variant="outline" className="shrink-0">Set</Button>
               </div>
-              <p className="text-xs text-slate-500">Events below this score will not trigger any security challenges.</p>
+              <p className="text-xs text-muted-foreground">Events below this score will not trigger any security challenges.</p>
             </div>
 
-            <div className="pt-4 border-t border-slate-800">
-              <label className="text-sm font-medium text-slate-300">Model Refresh Cycle</label>
-              <select className="w-full mt-2 bg-slate-950 border-slate-800 text-slate-300 rounded-md p-2 text-sm">
+            <div className="pt-4 border-t border-border">
+              <label className="text-sm font-medium text-foreground">Model Refresh Cycle</label>
+              <select className="w-full mt-2 bg-background border border-border text-foreground rounded-md p-2 text-sm outline-none focus:ring-1 focus:ring-emerald-500/20">
                 <option>Every 6 Hours</option>
                 <option>Every 12 Hours</option>
                 <option>Daily</option>

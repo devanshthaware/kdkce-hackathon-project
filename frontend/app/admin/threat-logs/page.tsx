@@ -11,13 +11,13 @@ import { api } from "@/convex/_generated/api"
 
 
 const columns = [
-  { header: "Timestamp", accessor: "timestamp" as const, className: "font-mono text-slate-500" },
+  { header: "Timestamp", accessor: "timestamp" as const, className: "font-mono text-muted-foreground" },
   { header: "Project", accessor: "project" as const, className: "font-semibold" },
   { 
     header: "Risk Score", 
     accessor: (item: any) => (
       <div className="flex items-center gap-2">
-        <div className={`h-2 w-12 rounded-full overflow-hidden bg-slate-800`}>
+        <div className="h-2 w-12 rounded-full overflow-hidden bg-muted">
           <div 
             className={`h-full ${item.riskScore > 80 ? "bg-rose-500 shadow-[0_0_8px_theme(colors.rose.500)]" : item.riskScore > 60 ? "bg-orange-500" : "bg-yellow-500"}`}
             style={{ width: `${item.riskScore}%` }}
@@ -40,23 +40,23 @@ export default function ThreatLogs() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">Threat Logs</h1>
-          <p className="text-slate-400 mt-1">Real-time security events and intelligence stream.</p>
+          <h1 className="text-3xl font-bold text-foreground">Threat Logs</h1>
+          <p className="text-muted-foreground mt-1">Real-time security events and intelligence stream.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-slate-800 text-slate-300 hover:bg-slate-800">
+          <Button variant="outline">
             <Filter className="mr-2 h-4 w-4" />
             Filter
           </Button>
-          <Button variant="outline" className="border-slate-800 text-slate-300 hover:bg-slate-800">
+          <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
             Download
           </Button>
         </div>
       </div>
 
-      <Card className="bg-slate-900 border-slate-800">
-        <CardHeader className="bg-slate-950/30 border-b border-slate-800 px-6 py-4">
+      <Card className="bg-card border-border">
+        <CardHeader className="bg-muted/30 border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <ShieldAlert className="size-4 text-emerald-400" />

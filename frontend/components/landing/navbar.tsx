@@ -1,8 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Shield } from "lucide-react"
-import { Authenticated, Unauthenticated } from "convex/react"
-import { UserButton } from "@clerk/nextjs"
 
 export function Navbar() {
   return (
@@ -27,17 +25,12 @@ export function Navbar() {
           </Link>
         </nav>
         <div className="flex items-center gap-3">
-          <Unauthenticated>
-            <Link href="/admin" className="text-sm font-medium text-emerald-400 hover:text-emerald-300 mr-2 transition-colors">
-              Admin Login
-            </Link>
-            <Button size="sm" asChild className="rounded-lg">
-              <Link href="/auth">Get Started</Link>
-            </Button>
-          </Unauthenticated>
-          <Authenticated>
-            <UserButton afterSignOutUrl="/" />
-          </Authenticated>
+          <Link href="/admin" className="text-sm font-medium text-emerald-400 hover:text-emerald-300 mr-2 transition-colors">
+            Admin Login
+          </Link>
+          <Button size="sm" asChild className="rounded-lg">
+            <Link href="/sign-in">Get Started</Link>
+          </Button>
         </div>
       </div>
     </header>

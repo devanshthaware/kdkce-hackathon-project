@@ -2,18 +2,29 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 
 export const list = query({
-    args: { applicationId: v.optional(v.id("applications")) },
+    args: { 
+        applicationId: v.optional(v.id("applications")),
+        organizationId: v.optional(v.id("organizations"))
+    },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Unauthorized");
 
         const userId = identity.subject;
 
-        // Fetch owned applications
-        const apps = await ctx.db
-            .query("applications")
-            .withIndex("by_user", (q) => q.eq("userId", userId))
-            .collect();
+        // Fetch apps matching organization or fallback to user
+        let apps;
+        if (args.organizationId) {
+            apps = await ctx.db
+                .query("applications")
+                .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId!))
+                .collect();
+        } else {
+            apps = await ctx.db
+                .query("applications")
+                .withIndex("by_user", (q) => q.eq("userId", userId))
+                .collect();
+        }
 
         const appIds = new Set(apps.map((app) => app._id.toString()));
 

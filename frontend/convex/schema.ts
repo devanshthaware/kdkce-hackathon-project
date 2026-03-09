@@ -23,7 +23,18 @@ export default defineSchema({
         status: v.string(),
         type: v.string(),
         userId: v.string(),
-    }).index("by_user", ["userId"]),
+        organizationId: v.optional(v.id("organizations")),
+    }).index("by_user", ["userId"]).index("by_org", ["organizationId"]),
+    organizations: defineTable({
+        name: v.string(),
+        ownerId: v.string(),
+        createdAt: v.float64(),
+    }).index("by_owner", ["ownerId"]),
+    organizationMembers: defineTable({
+        organizationId: v.id("organizations"),
+        userId: v.string(),
+        role: v.string(), // "owner", "admin", "member"
+    }).index("by_user", ["userId"]).index("by_org", ["organizationId"]),
     messages: defineTable({
         author: v.string(),
         body: v.string(),
