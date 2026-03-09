@@ -13,6 +13,7 @@ from src.api.routes_device import router as device_router
 from src.api.routes_baseline import router as baseline_router
 from src.api.routes_global import router as global_router
 from src.api.routes_risk import router as risk_router
+from src.api.routes_support import router as support_router
 from src.api.schemas import HealthResponse
 from src.inference.model_loader import get_models
 from src.config.settings import API_HOST, API_PORT, API_RELOAD
@@ -72,6 +73,7 @@ app.include_router(device_router)
 app.include_router(baseline_router)
 app.include_router(global_router)
 app.include_router(risk_router)
+app.include_router(support_router)
 
 
 # Global exception handler

@@ -15,6 +15,7 @@ import type * as messages from "../messages.js";
 import type * as ml from "../ml.js";
 import type * as riskPolicies from "../riskPolicies.js";
 import type * as sessions from "../sessions.js";
+import type * as support from "../support.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   ml: typeof ml;
   riskPolicies: typeof riskPolicies;
   sessions: typeof sessions;
+  support: typeof support;
 }>;
 
 /**

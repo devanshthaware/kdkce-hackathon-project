@@ -44,6 +44,7 @@ const navItems = [
   { href: "/dashboard/sessions", label: "Live Sessions", icon: Radio },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/support", label: "Support Center", icon: Radio },
 ]
 
 export function Topbar() {

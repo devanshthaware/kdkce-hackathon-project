@@ -2,6 +2,7 @@
 
 import { DashboardSidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
+import { SecurityPopup } from "@/components/support/SecurityPopup"
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,7 @@ export default function DashboardLayout({
       <div className="transition-all duration-300 lg:pl-64">
         <Topbar />
         <main className="p-6">{children}</main>
+        <SecurityPopup />
       </div>
     </div>
   )

@@ -34,8 +34,8 @@ const navItems = [
   { href: "/membership", label: "Membership", icon: CreditCard },
   { href: "/docs", label: "Documentation", icon: FileText },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/support", label: "Support Center", icon: Radio },
 ]
-
 
 export function DashboardSidebar() {
   const pathname = usePathname()
