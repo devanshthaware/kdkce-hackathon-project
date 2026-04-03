@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { useOrganization } from "@/components/providers/organization-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -163,6 +164,7 @@ type SortDir = "asc" | "desc"
 
 export default function ApplicationsPage() {
   const { activeOrganization } = useOrganization()
+  const router = useRouter()
   
   const apps = useQuery(
     api.applications.getApplicationsByOrg, 
@@ -234,7 +236,7 @@ export default function ApplicationsPage() {
       return
     }
     try {
-      const id = await createApp({
+      const createdApp = await createApp({
         name: newApp.name.trim(),
         environment: newApp.environment,
         riskPolicyId: newApp.riskPolicyId,
@@ -243,9 +245,7 @@ export default function ApplicationsPage() {
         mlEnhancement: newApp.mlEnhancement,
         organizationId: newApp.organizationId
       })
-      // The local apps list will be automatically updated by Convex
-      // We need to find the created app in the list to show success dialog
-      // Since it's async, we might need a better way, but for now we'll just wait for apps to refresh
+      setSelectedApp(createdApp as any)
       setAddStep(3)
       toast.success(`${newApp.name} has been successfully registered.`)
     } catch (error) {
@@ -465,7 +465,7 @@ export default function ApplicationsPage() {
                       onValueChange={(v) => setNewApp({ ...newApp, riskPolicyId: v as Id<"riskPolicies"> })}
                       className="flex flex-col gap-4"
                     >
-                      {policies?.map((policy) => (
+                      {policies?.map((policy: any) => (
                         <div key={policy._id} className="flex items-center gap-3">
                           <RadioGroupItem value={policy._id} id={`policy-${policy._id}`} className="size-4 border-primary/40 text-primary" />
                           <Label htmlFor={`policy-${policy._id}`} className="text-sm font-medium cursor-pointer">{policy.name}</Label>
@@ -534,7 +534,7 @@ export default function ApplicationsPage() {
               </>
             ) : (
               <AppDetailsContent
-                app={selectedApp || (apps && apps.length > 0 ? apps[0] : null) as any}
+                app={selectedApp}
                 onClose={() => setAddOpen(false)}
                 title="Application Created Successfully"
                 isSuccess={true}
@@ -616,7 +616,11 @@ export default function ApplicationsPage() {
                 </TableRow>
               ) : (
                 filtered.map((app) => (
-                  <TableRow key={app._id} className="border-border/30">
+                  <TableRow 
+                    key={app._id} 
+                    className="border-border/30 cursor-pointer hover:bg-secondary/20 transition-colors"
+                    onClick={() => router.push(`/dashboard/applications/${app._id}`)}
+                  >
                     <TableCell className="font-medium">{app.name}</TableCell>
                     <TableCell>
                       <Badge
@@ -646,7 +650,7 @@ export default function ApplicationsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
                             <MoreHorizontal className="size-4" />
                             <span className="sr-only">Open actions menu</span>

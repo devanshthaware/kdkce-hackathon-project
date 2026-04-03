@@ -1,9 +1,37 @@
 import { v } from "convex/values";
-import { action, mutation } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { evaluateDecision, DecisionType } from "./decisions";
 import { transitionSession, SessionState } from "./sessionState";
 import { emitEvent } from "./events";
+
+export const getSessionAppAndSettings = query({
+    args: { sessionId: v.id("sessions") },
+    handler: async (ctx, args) => {
+        const session = await ctx.db.get(args.sessionId);
+        if (!session) throw new Error("Session not found");
+        
+        let settings = await ctx.db
+            .query("securitySettings")
+            .withIndex("by_application", q => q.eq("applicationId", session.applicationId))
+            .first();
+
+        if (!settings) {
+            settings = {
+                _id: "default" as any,
+                _creationTime: Date.now(),
+                applicationId: session.applicationId,
+                enforceMfa: false,
+                riskBasedAuth: true,
+                autoBlockHighRisk: true,
+                sessionRecording: false,
+                ipAllowlistEnabled: false,
+                updatedAt: Date.now()
+            };
+        }
+        return { session, settings };
+    }
+});
 
 export const assessRisk = action({
     args: {
@@ -14,21 +42,25 @@ export const assessRisk = action({
     handler: async (ctx, args) => {
         const mlUrl = process.env.ML_BACKEND_URL || "http://localhost:8000";
 
-        // Structured ML request payload
+        // Fetch session & unique security settings mapping for this specific app
+        const { session, settings } = await ctx.runQuery(api.ml.getSessionAppAndSettings, {
+            sessionId: args.sessionId
+        });
+
         const requestBody = {
             login: {
-                username: args.context.userEmail || "user@example.com",
-                ip_address: args.context.ip || "192.168.1.1",
-                user_agent: "AegisAuth-SDK/1.0",
+                username: args.context.userEmail || session.userEmail || "user@example.com",
+                ip_address: args.context.ip || session.ip || "192.168.1.1",
+                user_agent: session.browser || "AegisAuth-SDK/1.0",
                 login_timestamp: new Date().toISOString(),
                 correlation_id: args.correlationId,
             },
             session: { session_id: args.sessionId },
-            device: { device_id: args.context.device || "dev_unknown" }
+            device: { device_id: args.context.device || session.device || "dev_unknown" }
         };
 
         try {
-            const response = await fetch(`${mlUrl}/predict/risk`, {
+            const response: any = await fetch(`${mlUrl}/predict/risk`, {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
@@ -39,10 +71,10 @@ export const assessRisk = action({
 
             if (!response.ok) throw new Error(`ML Backend responded with ${response.status}`);
 
-            const result = await response.json();
+            const result: any = await response.json();
             
-            // 2. Sync results and trigger downstream events via mutation
-            const decision = evaluateDecision(result.risk_score, result.risk_level);
+            // Generate the decision strictly based on the database-enforced settings
+            const decision = evaluateDecision(result.risk_score, result.risk_level, settings, session.ip);
 
             const stateMap: Record<DecisionType, SessionState> = {
                 ALLOW: "ACTIVE",
@@ -124,5 +156,22 @@ export const syncMLResults = mutation({
             "ML_ASSESSMENT_COMPLETED",
             args.correlationId
         );
+
+        // Generate Risk/Block Alerts
+        if (args.decisionType === "BLOCK" || args.score >= 0.8) {
+            const app = await ctx.db.get(session.applicationId);
+            if (app) {
+                await ctx.db.insert("alerts", {
+                    userId: app.userId,
+                    applicationId: session.applicationId,
+                    type: args.decisionType === "BLOCK" ? "BLOCKED" : "HIGH_RISK",
+                    message: args.decisionType === "BLOCK" ? "Session blocked due to high risk policy" : "Critical risk session detected by ML",
+                    severity: "CRITICAL",
+                    correlationId: args.correlationId,
+                    isRead: false,
+                    createdAt: Date.now()
+                });
+            }
+        }
     },
 });

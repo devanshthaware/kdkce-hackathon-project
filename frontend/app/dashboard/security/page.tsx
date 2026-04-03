@@ -15,13 +15,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Plus, Pencil, Trash2 } from "lucide-react"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation, useQuery, useConvexAuth } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 import { toast } from "sonner"
 import { useEffect } from "react"
 
 export default function RiskPoliciesPage() {
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const [attempted, setAttempted] = useState(false)
   const policies = useQuery(api.riskPolicies.list)
   const createPolicy = useMutation(api.riskPolicies.create)
   const updatePolicy = useMutation(api.riskPolicies.update)
@@ -42,10 +44,14 @@ export default function RiskPoliciesPage() {
   })
 
   useEffect(() => {
-    if (policies && policies.length === 0) {
-      seedPolicies();
+    // Only attempt to seed when authenticated, not loading, and we haven't already attempted this session
+    if (isAuthenticated && !isLoading && !attempted && policies && policies.length === 0) {
+      setAttempted(true)
+      seedPolicies().catch((err) => {
+        console.error("Failed to seed risk policies:", err)
+      })
     }
-  }, [policies, seedPolicies]);
+  }, [isAuthenticated, isLoading, attempted, policies, seedPolicies])
 
   function openEdit(policy: any) {
     setForm({

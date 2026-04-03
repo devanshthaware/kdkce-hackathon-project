@@ -40,6 +40,12 @@
     "@radix-ui/react-tooltip": "1.2.8",
     "@react-three/fiber": "^9.5.0",
     "@react-three/postprocessing": "^3.0.4",
+<<<<<<< HEAD
+    "@stripe/stripe-js": "^9.0.1",
+=======
+    "@splinetool/react-spline": "^4.1.0",
+    "@splinetool/runtime": "^1.12.74",
+>>>>>>> 48b33f46a8aaa4d1c8d692aae18aae6d34836a81
     "@vercel/analytics": "1.6.1",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
@@ -48,6 +54,7 @@
     "convex": "^1.32.0",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.6.0",
+    "framer-motion": "^12.38.0",
     "init": "^0.1.2",
     "input-otp": "1.4.2",
     "lucide-react": "^0.564.0",
@@ -63,6 +70,7 @@
     "recharts": "2.15.0",
     "shadcn": "^3.8.5",
     "sonner": "^1.7.1",
+    "stripe": "^22.0.0",
     "tailwind-merge": "^3.3.1",
     "three": "^0.167.1",
     "vaul": "^1.1.2",

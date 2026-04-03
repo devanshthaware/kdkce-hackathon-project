@@ -4,6 +4,10 @@ import { PricingCard } from "@/components/membership/PricingCard"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { useEffect, useState } from "react"
+import { Loader2 } from "lucide-react"
 
 const PLANS = [
     {
@@ -14,7 +18,7 @@ const PLANS = [
     },
     {
         title: "Pro",
-        price: "$49",
+        price: "$39",
         description: "Advanced protection for growing applications.",
         highlighted: true,
         features: [
@@ -48,6 +52,24 @@ const COMPARISON = [
 ]
 
 export default function MembershipPage() {
+    const totalEvents = useQuery(api.events.getTotalUserEvents, {}) ?? 0;
+    const [isPro, setIsPro] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        setIsPro(localStorage.getItem("aegis_plan") === "Pro");
+    }, []);
+
+    if (!mounted) {
+        return <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        </div>;
+    }
+
+    const maxEvents = isPro ? 50000 : 1000;
+    const usagePercentage = Math.min(100, Math.round((totalEvents / maxEvents) * 100));
+
     return (
         <div className="flex flex-col gap-10 max-w-6xl mx-auto py-6">
             <div className="flex items-center justify-between">
@@ -56,7 +78,7 @@ export default function MembershipPage() {
                     <p className="text-muted-foreground mt-2">Manage your subscription, usage, and billing preferences.</p>
                 </div>
                 <Badge variant="outline" className="px-3 py-1 text-sm border-emerald-500/50 bg-emerald-500/10 text-emerald-400">
-                    Current Plan: Pro
+                    Current Plan: {isPro ? "Pro" : "Starter"}
                 </Badge>
             </div>
 
@@ -71,10 +93,10 @@ export default function MembershipPage() {
                 <div className="rounded-xl border border-border/50 bg-card/30 p-6 space-y-4">
                     <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground font-medium">Monthly API Events</span>
-                        <span className="font-mono font-bold">32,451 / 50,000</span>
+                        <span className="font-mono font-bold">{totalEvents.toLocaleString()} / {maxEvents.toLocaleString()}</span>
                     </div>
-                    <Progress value={65} className="h-2 bg-secondary" />
-                    <p className="text-xs text-muted-foreground italic">You have used 65% of your Pro plan monthly quota.</p>
+                    <Progress value={usagePercentage} className="h-2 bg-secondary" />
+                    <p className="text-xs text-muted-foreground italic">You have used {usagePercentage}% of your {isPro ? "Pro" : "Starter"} plan monthly quota.</p>
                 </div>
             </div>
 

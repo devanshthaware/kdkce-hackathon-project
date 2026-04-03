@@ -28,7 +28,7 @@ export const getGlobalStats = query({
         const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
         
         const requestsToday = events.filter(e => e.type === "SIGNAL_RECEIVED" && e.timestamp > twentyFourHoursAgo).length;
-        const threatsDetected = sessions.filter(s => s.score > 0.7).length;
+        const threatsDetected = sessions.filter(s => (s.score ?? 0) > 0.7).length;
 
         return {
             totalDevelopers: developerIds.size,
@@ -74,7 +74,7 @@ export const getProjects = query({
 
         return apps.map(app => {
             const appSessions = sessions.filter(s => s.applicationId === app._id);
-            const threats = appSessions.filter(s => s.score > 0.7).length;
+            const threats = appSessions.filter(s => (s.score ?? 0) > 0.7).length;
             
             return {
                 id: app._id,

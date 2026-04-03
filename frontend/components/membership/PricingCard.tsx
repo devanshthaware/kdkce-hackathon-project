@@ -1,9 +1,11 @@
 "use client"
 
-import { Check } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { useState } from "react"
+import { toast } from "sonner"
 
 interface PricingCardProps {
     title: string
@@ -22,6 +24,40 @@ export function PricingCard({
     highlighted = false,
     buttonText = "Select Plan",
 }: PricingCardProps) {
+    const [isLoading, setIsLoading] = useState(false)
+
+    const handleCheckout = async () => {
+        if (price === "$0" || price === "Custom") {
+            toast("This plan does not require a payment method.")
+            return
+        }
+
+        try {
+            setIsLoading(true)
+            const res = await fetch("/api/checkout", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ priceStr: price, planName: title }),
+            })
+
+            const data = await res.json()
+
+            if (!res.ok) {
+                throw new Error(data.error || "Something went wrong")
+            }
+
+            if (data.url) {
+                window.location.href = data.url
+            }
+        } catch (error: any) {
+            toast.error("Checkout failed: " + error.message)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     return (
         <Card
             className={cn(
@@ -56,6 +92,8 @@ export function PricingCard({
             </CardContent>
             <CardFooter>
                 <Button
+                    onClick={handleCheckout}
+                    disabled={isLoading}
                     className={cn(
                         "w-full rounded-xl transition-all",
                         highlighted
@@ -64,7 +102,8 @@ export function PricingCard({
                     )}
                     variant={highlighted ? "default" : "outline"}
                 >
-                    {buttonText}
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isLoading ? "Redirecting..." : buttonText}
                 </Button>
             </CardFooter>
         </Card>

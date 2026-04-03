@@ -23,20 +23,18 @@ import {
   Bell,
   Shield,
   Menu,
-  LayoutDashboard,
-  AppWindow,
-  ShieldAlert,
-  Radio,
-  BarChart3,
-  Settings,
-  User,
-  LogOut,
   X,
-} from "lucide-react"
-import {
-  ChevronDown,
   Building2,
-  PlusCircle
+  PlusCircle,
+  ChevronDown,
+  LayoutGrid,
+  ShieldCheck,
+  Activity,
+  Users,
+  Webhook,
+  Settings,
+  LifeBuoy,
+  Zap,
 } from "lucide-react"
 
 import { UserButton } from "@clerk/nextjs"
@@ -52,18 +50,27 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/applications", label: "Applications", icon: AppWindow },
-  { href: "/dashboard/risk-policies", label: "Risk Policies", icon: ShieldAlert },
-  { href: "/dashboard/sessions", label: "Live Sessions", icon: Radio },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/applications", label: "Applications", icon: LayoutGrid },
+  { href: "/dashboard/security", label: "Security", icon: ShieldCheck },
+  { href: "/dashboard/access", label: "Premium", icon: Zap },
+  { href: "/dashboard/integrations", label: "Integrations", icon: Webhook },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/dashboard/support", label: "Support Center", icon: Radio },
+  { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
 ]
+
+function formatTimeAgo(timestamp: number) {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
 
 export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -72,127 +79,131 @@ export function Topbar() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newOrgName, setNewOrgName] = useState("")
   const createOrganization = useMutation(api.organizations.create)
+  const markAlertAsRead = useMutation(api.alerts.markAsRead)
+  const markAllAlertsAsRead = useMutation(api.alerts.markAllAsRead)
+  const alerts = useQuery(api.alerts.getAlerts, { limit: 20 })
   
   const pathname = usePathname()
   const router = useRouter()
 
-  const notifications = [
-    { id: 1, text: "High risk session detected from Moscow, RU", time: "2m ago", unread: true },
-    { id: 2, text: "API key ak_dev_* was revoked", time: "15m ago", unread: true },
-    { id: 3, text: "New application registered: Partner API", time: "1h ago", unread: false },
-    { id: 4, text: "Risk policy threshold updated for Finance model", time: "3h ago", unread: false },
-  ]
-
   const { activeOrganization, setActiveOrganization, organizations } = useOrganization()
   const activeOrgData = organizations?.find(org => org._id === activeOrganization)
 
+  const unreadCount = alerts?.filter(a => !a.isRead).length || 0
+
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-6 backdrop-blur-lg">
-        {/* Mobile hamburger */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden">
-              <Menu className="size-5" />
-              <span className="sr-only">Open mobile menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 bg-sidebar p-0 border-sidebar-border">
-            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-              <Shield className="size-6 text-primary" />
-              <span className="text-lg font-bold text-sidebar-foreground">AegisAuth</span>
-            </div>
-            <nav className="px-3 py-4" aria-label="Mobile navigation">
-              <ul className="flex flex-col gap-1">
-                {navItems.map((item) => {
-                  const isActive = pathname === item.href
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors",
-                          isActive
-                            ? "bg-sidebar-accent text-sidebar-primary"
-                            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                        )}
-                      >
-                        <item.icon className="size-4 shrink-0" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </nav>
-          </SheetContent>
-        </Sheet>
+      <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-background px-6 backdrop-blur-lg">
+        {/* Logo & Desktop Nav Wrapper */}
+        <div className="flex items-center gap-8 flex-1">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <Shield className="size-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight">AegisAuth</span>
+          </Link>
 
-        <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
-          <Shield className="size-5 text-primary" />
-          <span className="text-xl font-bold tracking-tight">AegisAuth</span>
-        </Link>
-        {/* Organization Switcher */}
-        <div className="hidden lg:flex items-center ml-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-9 gap-2 px-3 border-border/60 bg-secondary/30">
-                <Building2 className="size-4 text-muted-foreground" />
-                <span className="text-sm font-medium">
-                  {activeOrgData ? activeOrgData.name : "Loading..."}
-                </span>
-                <ChevronDown className="size-3.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[200px]">
-              {organizations?.map((org: any) => (
-                <DropdownMenuItem
-                  key={org._id}
-                  onClick={() => setActiveOrganization(org._id)}
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navItems.map((item) => {
+              const isActive = pathname.startsWith(item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
                   className={cn(
-                    "cursor-pointer",
-                    activeOrganization === org._id && "bg-secondary font-medium"
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
+                    isActive
+                      ? "bg-secondary text-primary"
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                   )}
                 >
-                  <Building2 className="mr-2 size-4 text-muted-foreground" />
-                  {org.name}
+                  <item.icon className="size-4" />
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+
+
+        </div>
+
+        {/* Right side actions */}
+        <div className="flex items-center gap-3">
+          {/* Org Switcher */}
+          <div className="hidden sm:flex items-center mr-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 gap-2 px-2 hover:bg-secondary/50">
+                  <Building2 className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium hidden md:block">
+                    {activeOrgData ? activeOrgData.name : "..."}
+                  </span>
+                  <ChevronDown className="size-3 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                {organizations?.map((org: any) => (
+                  <DropdownMenuItem
+                    key={org._id}
+                    onClick={() => setActiveOrganization(org._id)}
+                    className={cn(
+                      "cursor-pointer",
+                      activeOrganization === org._id && "bg-secondary font-medium"
+                    )}
+                  >
+                    <Building2 className="mr-2 size-4 text-muted-foreground" />
+                    {org.name}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setIsCreateModalOpen(true)} className="cursor-pointer text-muted-foreground text-xs">
+                  <PlusCircle className="mr-2 size-4" />
+                  New Organization
                 </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setIsCreateModalOpen(true)} className="cursor-pointer text-muted-foreground">
-                <PlusCircle className="mr-2 size-4" />
-                Create Organization
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Search */}
-        <div className="hidden flex-1 lg:block">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search sessions, users, policies..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border border-border bg-secondary/50 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="ml-auto flex items-center gap-2">
+          {/* Mobile hamburger */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden">
+                <Menu className="size-5" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="top" className="w-full bg-background p-0 border-b">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <div className="flex h-16 items-center gap-2 border-b border-border px-6">
+                <Shield className="size-6 text-primary" />
+                <span className="text-lg font-bold">AegisAuth</span>
+              </div>
+              <nav className="px-6 py-6" aria-label="Mobile navigation">
+                <ul className="grid grid-cols-2 gap-3">
+                  {navItems.map((item) => {
+                    const isActive = pathname.startsWith(item.href)
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl p-4 text-sm font-medium transition-all shadow-sm border border-border/50",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                          )}
+                        >
+                          <item.icon className={cn("size-5", isActive ? "text-primary-foreground" : "text-primary")} />
+                          {item.label}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </nav>
+            </SheetContent>
+          </Sheet>
+
           {/* Notifications */}
           <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
             <DropdownMenuTrigger asChild>
@@ -202,77 +213,123 @@ export function Topbar() {
                 className="relative text-muted-foreground hover:text-foreground"
               >
                 <Bell className="size-4" />
-                <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive border-[1.5px] border-background" />
+                )}
                 <span className="sr-only">Notifications</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 bg-popover p-0">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <span className="text-sm font-medium">Notifications</span>
-                <span className="text-xs text-muted-foreground">2 unread</span>
-              </div>
-              {notifications.map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className="flex flex-col items-start gap-1 px-4 py-3"
-                >
-                  <div className="flex items-start gap-2">
-                    {notification.unread && (
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                    )}
-                    <span className={cn("text-sm", !notification.unread && "ml-3.5 text-muted-foreground")}>
-                      {notification.text}
+            <DropdownMenuContent align="end" className="w-80 bg-popover p-0 shadow-xl border-border/50">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-secondary/20">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Activity Stream</span>
+                  {unreadCount > 0 && (
+                    <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      {unreadCount} New
                     </span>
-                  </div>
-                  <span className="ml-3.5 text-xs text-muted-foreground">
-                    {notification.time}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="justify-center py-2.5 text-xs text-primary">
-                View all notifications
+                  )}
+                </div>
+                {unreadCount > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    className="h-auto p-0 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                    onClick={() => markAllAlertsAsRead()}
+                  >
+                    Mark all read
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-[300px] overflow-y-auto">
+                {!alerts || alerts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+                        <Activity className="size-8 text-muted-foreground/30 mb-2" />
+                        <p className="text-xs font-semibold text-muted-foreground">All clear</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">We'll alert you of any suspicious activity.</p>
+                    </div>
+                ) : (
+                    alerts.map((alert) => (
+                    <DropdownMenuItem
+                        key={alert._id}
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          if (!alert.isRead) markAlertAsRead({ alertId: alert._id })
+                        }}
+                        className={cn(
+                          "flex flex-col items-start gap-1.5 px-4 py-3 border-b border-border/10 last:border-0 cursor-pointer focus:bg-secondary/40",
+                          !alert.isRead ? "bg-primary/5 hover:bg-primary/10" : ""
+                        )}
+                    >
+                        <div className="flex items-start justify-between w-full">
+                          <div className="flex items-center gap-1.5">
+                            {!alert.isRead && <span className="size-1.5 shrink-0 rounded-full bg-primary" />}
+                            <span className={cn(
+                              "size-1.5 shrink-0 rounded-full",
+                              alert.severity === "CRITICAL" ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                              alert.severity === "HIGH" ? "bg-orange-500" :
+                              alert.severity === "MEDIUM" ? "bg-yellow-500" : "bg-blue-500"
+                            )} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">{alert.appName}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-muted-foreground/60 whitespace-nowrap">
+                            {formatTimeAgo(alert.createdAt)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 w-full mt-0.5">
+                          <span className={cn(
+                            "flex items-center text-xs leading-relaxed", 
+                            !alert.isRead ? "text-foreground font-medium" : "text-muted-foreground"
+                          )}>
+                            {alert.message}
+                          </span>
+                        </div>
+                    </DropdownMenuItem>
+                    ))
+                )}
+              </div>
+              <DropdownMenuItem asChild className="justify-center py-3 text-xs font-bold text-primary hover:bg-primary/5 cursor-pointer rounded-t-none border-t border-border/40">
+                <Link href="/dashboard">Explore Intelligence Stream</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <div className="h-6 w-px bg-border mx-1 hidden sm:block" />
+          
           <AnimatedThemeToggler />
           <UserButton afterSignOutUrl="/" />
         </div>
       </header>
 
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="bg-background border-border sm:max-w-[425px]">
+        <DialogContent className="bg-background border-border sm:max-w-[425px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Create Organization</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">New Organization</DialogTitle>
             <DialogDescription>
-              Create a new workspace for your team.
+              Deploy a new isolated workspace for team collaboration.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-6">
             <div className="grid gap-2">
-              <Label htmlFor="orgName">Organization Name</Label>
+              <Label htmlFor="orgName" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Name</Label>
               <Input
                 id="orgName"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className="bg-secondary/50 border-border/50"
+                placeholder="e.g. Aegis Security"
+                className="bg-secondary/30 border-border/50 h-11 rounded-xl"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+            <Button variant="ghost" onClick={() => setIsCreateModalOpen(false)} className="rounded-xl">
               Cancel
             </Button>
             <Button 
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-8"
               disabled={!newOrgName.trim()}
               onClick={async () => {
                 if (!newOrgName.trim()) return;
                 try {
                   const newOrgId = await createOrganization({ name: newOrgName });
-                  // Cast to any to safely set active organization since Id is strict
                   setActiveOrganization(newOrgId as any);
                   setIsCreateModalOpen(false);
                   setNewOrgName("");
@@ -281,7 +338,7 @@ export function Topbar() {
                 }
               }}
             >
-              Create
+              Initialize
             </Button>
           </DialogFooter>
         </DialogContent>

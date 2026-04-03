@@ -43,7 +43,9 @@ export const seed = mutation({
     args: {},
     handler: async (ctx) => {
         const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
+        if (!identity) {
+            return { success: false, reason: "Not authenticated" };
+        }
 
         const existing = await ctx.db
             .query("riskPolicies")

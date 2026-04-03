@@ -12,6 +12,7 @@ import {
 } from "recharts"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 
 const tooltipStyle = {
   backgroundColor: "rgba(15, 17, 23, 0.8)",
@@ -46,11 +47,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 import { useOrganization } from "@/components/providers/organization-provider"
 
-export function RiskChart() {
+export function RiskChart({ applicationId }: { applicationId?: string | Id<"applications"> }) {
   const { activeOrganization } = useOrganization()
   const analytics = useQuery(
     api.sessions.getAnalytics,
-    activeOrganization ? { organizationId: activeOrganization } : "skip"
+    applicationId
+      ? { applicationId: applicationId as any }
+      : (activeOrganization ? { organizationId: activeOrganization } : "skip")
   )
   const data = analytics?.hourlyRiskDist ?? []
 

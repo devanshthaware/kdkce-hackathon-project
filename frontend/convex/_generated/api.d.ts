@@ -10,14 +10,16 @@
 
 import type * as activities from "../activities.js";
 import type * as admin from "../admin.js";
+import type * as alerts from "../alerts.js";
 import type * as applications from "../applications.js";
 import type * as decisions from "../decisions.js";
 import type * as events from "../events.js";
 import type * as messages from "../messages.js";
 import type * as ml from "../ml.js";
 import type * as organizations from "../organizations.js";
+import type * as platformAuth from "../platformAuth.js";
 import type * as riskPolicies from "../riskPolicies.js";
-import type * as seed from "../seed.js";
+import type * as securitySettings from "../securitySettings.js";
 import type * as sessionState from "../sessionState.js";
 import type * as sessions from "../sessions.js";
 import type * as support from "../support.js";
@@ -32,14 +34,16 @@ import type {
 declare const fullApi: ApiFromModules<{
   activities: typeof activities;
   admin: typeof admin;
+  alerts: typeof alerts;
   applications: typeof applications;
   decisions: typeof decisions;
   events: typeof events;
   messages: typeof messages;
   ml: typeof ml;
   organizations: typeof organizations;
+  platformAuth: typeof platformAuth;
   riskPolicies: typeof riskPolicies;
-  seed: typeof seed;
+  securitySettings: typeof securitySettings;
   sessionState: typeof sessionState;
   sessions: typeof sessions;
   support: typeof support;

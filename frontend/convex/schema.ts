@@ -106,4 +106,43 @@ export default defineSchema({
         key: v.string(),
         value: v.any(),
     }).index("by_key", ["key"]),
+    users: defineTable({
+        email: v.string(),
+        password_hash: v.string(),
+        name: v.string(),
+        role: v.union(v.literal("USER"), v.literal("ADMIN")),
+        created_at: v.number(),
+        updated_at: v.number(),
+        last_login_at: v.optional(v.number()),
+        failed_login_attempts: v.optional(v.number()),
+        locked_until: v.optional(v.number())
+    }).index("by_email", ["email"]),
+    loginHistory: defineTable({
+        user_id: v.id("users"),
+        email: v.string(),
+        ip_address: v.optional(v.string()),
+        device: v.optional(v.string()),
+        location: v.optional(v.string()),
+        status: v.union(v.literal("SUCCESS"), v.literal("FAILED")),
+        created_at: v.number()
+    }).index("by_user", ["user_id"]),
+    securitySettings: defineTable({
+        applicationId: v.id("applications"),
+        enforceMfa: v.boolean(),
+        riskBasedAuth: v.boolean(),
+        autoBlockHighRisk: v.boolean(),
+        sessionRecording: v.boolean(),
+        ipAllowlistEnabled: v.boolean(),
+        updatedAt: v.number(),
+    }).index("by_application", ["applicationId"]),
+    alerts: defineTable({
+        userId: v.string(), // Clerk user ID of the app owner
+        applicationId: v.optional(v.id("applications")), // Optional for org-level alerts
+        type: v.union(v.literal("HIGH_RISK"), v.literal("LOGIN"), v.literal("BLOCKED"), v.literal("API_EVENT")),
+        message: v.string(),
+        severity: v.union(v.literal("LOW"), v.literal("MEDIUM"), v.literal("HIGH"), v.literal("CRITICAL")),
+        correlationId: v.optional(v.string()),
+        isRead: v.boolean(),
+        createdAt: v.number(),
+    }).index("by_user", ["userId"]).index("by_application", ["applicationId"]).index("by_is_read", ["isRead"])
 });

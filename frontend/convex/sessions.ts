@@ -37,7 +37,7 @@ export const list = query({
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthorized");
+        if (!identity) return [];
 
         const userId = identity.subject;
 
@@ -69,11 +69,13 @@ export const list = query({
                 throw new Error("Forbidden: Unauthorized access to this application");
             }
 
-            return await ctx.db
+            const appSessions = await ctx.db
                 .query("sessions")
                 .withIndex("by_application", (q) => q.eq("applicationId", args.applicationId!))
                 .order("desc")
                 .collect();
+                
+            return filterValidLiveSessions(appSessions).slice(0, 100);
         }
 
         let sessions = [];
@@ -82,16 +84,37 @@ export const list = query({
                 .query("sessions")
                 .withIndex("by_application", (q) => q.eq("applicationId", app._id))
                 .order("desc")
-                .take(50);
+                .take(100);
             sessions.push(...appSessions);
         }
 
-        return sessions.sort((a, b) => b.loginTime - a.loginTime).slice(0, 100);
+        return filterValidLiveSessions(sessions)
+            .sort((a, b) => b.loginTime - a.loginTime)
+            .slice(0, 100);
     },
 });
 
+function filterValidLiveSessions(sessions: any[]) {
+    const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+    return sessions.filter(s => {
+        // Validation Rule: Must have required fields (created via real login flow)
+        const hasValidIds = !!s._id && !!s.applicationId && !!s.userEmail && !!s.correlationId;
+        
+        // Live Session Filter: Must be recent (last 24h)
+        const isRecent = s.loginTime > twentyFourHoursAgo;
+        
+        // Allowed Active/Live states
+        const isLiveState = ["NEW", "EVALUATING", "ACTIVE", "CHALLENGED", "RESTRICTED"].includes(s.state ?? "");
+        
+        return hasValidIds && isRecent && isLiveState;
+    });
+}
+
 export const getStats = query({
-    args: { organizationId: v.optional(v.id("organizations")) },
+    args: { 
+        organizationId: v.optional(v.id("organizations")),
+        applicationId: v.optional(v.id("applications"))
+    },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) return {
@@ -102,7 +125,20 @@ export const getStats = query({
         const userId = identity.subject;
 
         let apps = [];
-        if (args.organizationId) {
+        if (args.applicationId) {
+            const app = await ctx.db.get(args.applicationId);
+            if (!app) return null; // Or throw
+            // Security check
+            if (app.userId !== userId && app.organizationId) {
+                const membership = await ctx.db
+                    .query("organizationMembers")
+                    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+                    .filter((q: any) => q.eq(q.field("organizationId"), app.organizationId))
+                    .first();
+                if (!membership) return null;
+            }
+            apps = [app];
+        } else if (args.organizationId) {
             apps = await ctx.db
                 .query("applications")
                 .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId!))
@@ -122,6 +158,9 @@ export const getStats = query({
                 .collect();
             sessions.push(...appSessions);
         }
+
+        // Apply strict validation
+        sessions = filterValidLiveSessions(sessions);
 
         const highRisk = sessions.filter(s => s.state === "CHALLENGED" || s.state === "RESTRICTED" || s.state === "BLOCKED").length;
         const avgRisk = sessions.length > 0
@@ -154,7 +193,10 @@ export const getStats = query({
 });
 
 export const getAnalytics = query({
-    args: { organizationId: v.optional(v.id("organizations")) },
+    args: { 
+        organizationId: v.optional(v.id("organizations")),
+        applicationId: v.optional(v.id("applications"))
+    },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) return { hourlyRiskDist: [], riskDist: [], deviceTrust: [] };
@@ -162,7 +204,20 @@ export const getAnalytics = query({
         const userId = identity.subject;
 
         let apps: any[] = [];
-        if (args.organizationId) {
+        if (args.applicationId) {
+            const app = await ctx.db.get(args.applicationId);
+            if (!app) throw new Error("Application not found");
+            // Security check
+            if (app.userId !== userId && app.organizationId) {
+                const membership = await ctx.db
+                    .query("organizationMembers")
+                    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+                    .filter((q: any) => q.eq(q.field("organizationId"), app.organizationId))
+                    .first();
+                if (!membership) throw new Error("Forbidden");
+            }
+            apps = [app];
+        } else if (args.organizationId) {
             apps = await ctx.db
                 .query("applications")
                 .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId!))
@@ -182,6 +237,9 @@ export const getAnalytics = query({
                 .collect();
             sessions.push(...appSessions);
         }
+
+        // We use a modified filter for analytics to include all states but still assert validity
+        sessions = sessions.filter(s => !!s._id && !!s.applicationId && !!s.userEmail && !!s.correlationId);
 
         const now = Date.now();
         const oneDayMs = 24 * 60 * 60 * 1000;
@@ -292,6 +350,30 @@ export const createSession = mutation({
         // Enter state machine
         await transitionSession(ctx.db, sessionId, "EVALUATING", "SESSION_CREATED", correlationId);
 
+        // Generate LOGIN alert
+        await ctx.db.insert("alerts", {
+            userId: app.userId,
+            applicationId: args.applicationId,
+            type: "LOGIN",
+            message: `New login detected for ${userEmail}`,
+            severity: "LOW",
+            correlationId,
+            isRead: false,
+            createdAt: Date.now()
+        });
+
+        // Generate API_EVENT alert
+        await ctx.db.insert("alerts", {
+            userId: app.userId,
+            applicationId: args.applicationId,
+            type: "API_EVENT",
+            message: `API key used for authentication (${userEmail})`,
+            severity: "LOW",
+            correlationId,
+            isRead: false,
+            createdAt: Date.now()
+        });
+
         // Trigger ML assessment
         if (app?.mlEnhancement) {
             await ctx.scheduler.runAfter(0, (api as any).ml.assessRisk, {
@@ -307,6 +389,36 @@ export const createSession = mutation({
 
         return sessionId;
     },
+});
+
+export const getUserRecentSession = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const apps = await ctx.db
+            .query("applications")
+            .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+            .collect();
+
+        const appIds = apps.map(app => app._id);
+        
+        let latestSession = null;
+        for (const appId of appIds) {
+            const session = await ctx.db
+                .query("sessions")
+                .withIndex("by_application", (q) => q.eq("applicationId", appId))
+                .order("desc")
+                .first();
+            
+            if (session && (!latestSession || session.loginTime > latestSession.loginTime)) {
+                latestSession = session;
+            }
+        }
+
+        return latestSession;
+    }
 });
 
 export const updateSessionRisk = mutation({
