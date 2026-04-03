@@ -89,19 +89,39 @@ export const create = mutation({
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) throw new Error("Not authenticated");
 
+        if (!args.name || args.name.trim() === "") {
+            throw new Error("Application name is required.");
+        }
+
+        console.log("Creating app:", args.name);
+
         // Identity derived at signal entry
         const appId = `app_${Math.random().toString(36).substring(2, 8)}`;
         const apiKey = `ak_live_${Math.random().toString(36).substring(2, 10)}`;
         const secret = `sk_live_${Math.random().toString(36).substring(2, 10)}`;
 
-        return await ctx.db.insert("applications", {
+        const id = await ctx.db.insert("applications", {
             ...args,
+            name: args.name.trim(),
             status: "Active",
             appId,
             apiKey,
             secret,
             userId: identity.subject,
         });
+
+        // Part 9 - Create default security settings
+        await ctx.db.insert("securitySettings", {
+            applicationId: id,
+            enforceMfa: false,
+            riskBasedAuth: true,
+            autoBlockHighRisk: true,
+            sessionRecording: false,
+            ipAllowlistEnabled: false,
+            updatedAt: Date.now()
+        });
+
+        return await ctx.db.get(id);
     },
 });
 

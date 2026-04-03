@@ -15,8 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { Button } from "@/components/ui/button"
-import { Download, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { Download } from "lucide-react"
 
 const anomalyData = [
   { hour: "00:00", anomalies: 2, baseline: 5 },
@@ -31,6 +30,7 @@ const anomalyData = [
 
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 
 const tooltipStyle = {
   backgroundColor: "rgba(15, 17, 23, 0.8)",
@@ -62,31 +62,36 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   }
   return null
 }
-import { useOrganization } from "@/components/providers/organization-provider"
 
-export default function AnalyticsPage() {
-  const { activeOrganization } = useOrganization()
-  const analytics = useQuery(
-    api.sessions.getAnalytics,
-    activeOrganization ? { organizationId: activeOrganization } : "skip"
-  )
+export function AnalyticsPanel({ applicationId }: { applicationId: Id<"applications"> }) {
+  const analytics = useQuery(api.sessions.getAnalytics, { applicationId })
 
   if (!analytics) {
     return (
-      <div className="flex h-[600px] flex-col items-center justify-center gap-4 text-muted-foreground">
-        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="animate-pulse italic">Analyzing security data...</p>
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-4" />
+        <p className="animate-pulse text-sm">Aggregating real-time analytics...</p>
       </div>
     )
   }
 
   const { riskDist, deviceTrust } = analytics
 
-  const handleExportCSV = () => {
-    // Header
-    const headers = ["Day", "Risk: Low", "Risk: Medium", "Risk: High", "Risk: Critical", "Device: Trusted", "Device: Unknown", "Device: Untrusted"]
+  // If no risk dist or no data found (very zeroed state)
+  const totalRisks = riskDist.reduce((acc: number, curr: any) => acc + curr.low + curr.medium + curr.high + curr.critical, 0)
+  if (totalRisks === 0) {
+     return (
+        <div className="flex flex-col items-center justify-center min-h-[500px] text-center border border-border/30 rounded-xl bg-card/30 backdrop-blur-sm">
+            <h3 className="text-lg font-bold text-foreground mb-2">No analytics available</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+                There hasn't been any session activity for this application in the last 7 days. Once events are generated, analytical charts will appear here.
+            </p>
+        </div>
+     );
+  }
 
-    // Rows
+  const handleExportCSV = () => {
+    const headers = ["Day", "Risk: Low", "Risk: Medium", "Risk: High", "Risk: Critical", "Device: Trusted", "Device: Unknown", "Device: Untrusted"]
     const rows = (riskDist as any[]).map((rd, i) => {
       const dt = (deviceTrust as any[])[i]
       return [
@@ -100,19 +105,12 @@ export default function AnalyticsPage() {
         dt?.untrusted || 0
       ]
     })
-
-    // Combine
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.join(","))
-    ].join("\n")
-
-    // Download
+    const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n")
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
     link.setAttribute("href", url)
-    link.setAttribute("download", `aegis_analytics_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute("download", `aegis_analytics_${applicationId}_${new Date().toISOString().split('T')[0]}.csv`)
     link.style.visibility = "hidden"
     document.body.appendChild(link)
     link.click()
@@ -123,8 +121,8 @@ export default function AnalyticsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Security Analytics</h1>
-          <p className="text-sm text-muted-foreground">Deep dive into risk patterns and system health.</p>
+          <h2 className="text-xl font-bold">Security Analytics</h2>
+          <p className="text-sm text-muted-foreground">Deep dive into application specific risk patterns and system health.</p>
         </div>
         <Button
           variant="outline"

@@ -1,6 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
-import { DashboardSidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { SecurityPopup } from "@/components/support/SecurityPopup"
 
@@ -29,10 +28,9 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-      <div className="transition-all duration-300 lg:pl-64">
+      <div className="transition-all duration-300">
         <Topbar />
-        <main className="p-6">{children}</main>
+        <main className="max-w-[1600px] mx-auto p-6">{children}</main>
         <SecurityPopup />
       </div>
     </div>

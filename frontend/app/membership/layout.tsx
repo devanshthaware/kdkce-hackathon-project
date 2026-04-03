@@ -1,6 +1,5 @@
 "use client"
 
-import { DashboardSidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 
 export default function MembershipLayout({
@@ -10,10 +9,9 @@ export default function MembershipLayout({
 }) {
     return (
         <div className="min-h-screen bg-background">
-            <DashboardSidebar />
-            <div className="transition-all duration-300 lg:pl-64">
+            <div className="transition-all duration-300">
                 <Topbar />
-                <main className="p-6">{children}</main>
+                <main className="max-w-[1600px] mx-auto p-6">{children}</main>
             </div>
         </div>
     )

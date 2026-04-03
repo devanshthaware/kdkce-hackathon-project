@@ -43,13 +43,6 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("UTC")
   const [saved, setSaved] = useState(false)
 
-  const [securitySettings, setSecuritySettings] = useState({
-    mfa: true,
-    riskStepUp: true,
-    autoBlock: false,
-    sessionRecording: true,
-    ipAllowlist: false,
-  })
 
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([
     { name: "Production Key", prefix: "ak_live_", created: "Dec 15, 2025", status: "Active" },
@@ -77,9 +70,6 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  function handleToggleSecurity(key: keyof typeof securitySettings) {
-    setSecuritySettings({ ...securitySettings, [key]: !securitySettings[key] })
-  }
 
   function handleGenerateKey() {
     if (!newKeyName.trim()) return
@@ -123,13 +113,6 @@ export default function SettingsPage() {
     setIntegrations(updated)
   }
 
-  const securityOptions = [
-    { key: "mfa" as const, title: "Enforce Multi-Factor Authentication", description: "Require MFA for all admin accounts" },
-    { key: "riskStepUp" as const, title: "Enable Risk-Based Step-Up Auth", description: "Trigger additional verification for high-risk sessions" },
-    { key: "autoBlock" as const, title: "Auto-Block High Risk Sessions", description: "Automatically block sessions with risk score above 85" },
-    { key: "sessionRecording" as const, title: "Enable Session Recording", description: "Record session metadata for compliance and audit" },
-    { key: "ipAllowlist" as const, title: "IP Allowlisting", description: "Restrict admin access to approved IP addresses" },
-  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -143,7 +126,6 @@ export default function SettingsPage() {
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="bg-secondary">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
@@ -194,31 +176,6 @@ export default function SettingsPage() {
                 <Button className="w-fit gap-2 rounded-lg" size="sm" onClick={handleSaveGeneral}>
                   {saved ? <><Check className="size-4" /> Saved</> : "Save Changes"}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="mt-6">
-          <Card className="rounded-xl border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="text-base">Security Preferences</CardTitle>
-              <CardDescription>Configure global security settings for the platform.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-6">
-                {securityOptions.map((setting) => (
-                  <div key={setting.key} className="flex items-start justify-between gap-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm font-medium">{setting.title}</span>
-                      <span className="text-xs text-muted-foreground">{setting.description}</span>
-                    </div>
-                    <Switch
-                      checked={securitySettings[setting.key]}
-                      onCheckedChange={() => handleToggleSecurity(setting.key)}
-                    />
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
@@ -373,7 +330,7 @@ export default function SettingsPage() {
                     variant="ghost"
                     size="icon"
                     className="size-8 shrink-0 text-primary"
-                    onClick={() => handleCopyKey(generatedKey)}
+                    onClick={() => handleCopyKey(generatedKey!)}
                   >
                     {copiedKey === generatedKey ? <Check className="size-4" /> : <Copy className="size-4" />}
                     <span className="sr-only">Copy API key</span>

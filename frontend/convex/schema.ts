@@ -126,4 +126,13 @@ export default defineSchema({
         status: v.union(v.literal("SUCCESS"), v.literal("FAILED")),
         created_at: v.number()
     }).index("by_user", ["user_id"]),
+    securitySettings: defineTable({
+        applicationId: v.id("applications"),
+        enforceMfa: v.boolean(),
+        riskBasedAuth: v.boolean(),
+        autoBlockHighRisk: v.boolean(),
+        sessionRecording: v.boolean(),
+        ipAllowlistEnabled: v.boolean(),
+        updatedAt: v.number(),
+    }).index("by_application", ["applicationId"]),
 });

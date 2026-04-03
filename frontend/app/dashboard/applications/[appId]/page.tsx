@@ -1,12 +1,15 @@
 "use client"
 
 import { useParams, useRouter } from "next/navigation"
-import { useQuery } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
 import { StatCard } from "@/components/dashboard/stat-card"
-import { RiskChart } from "@/components/dashboard/risk-chart"
-import { ActivityTable } from "@/components/dashboard/activity-table"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LiveSessionsPanel } from "@/components/dashboard/live-sessions-panel"
+import { AnalyticsPanel } from "@/components/dashboard/analytics-panel"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,8 +36,18 @@ export default function ApplicationDashboardPage() {
   const app = useQuery(api.applications.getApp, { id: appId })
   const stats = useQuery(api.sessions.getStats, { applicationId: appId })
   const policies = useQuery(api.riskPolicies.list)
-  
-  const currentPolicy = policies?.find(p => p._id === app?.riskPolicyId)
+  const securitySettings = useQuery(api.securitySettings.getSettingsByApp, { applicationId: appId })
+  const updateSecuritySettings = useMutation(api.securitySettings.updateSettings)
+
+  const currentPolicy = policies?.find((p: any) => p._id === app?.riskPolicyId)
+
+  function handleToggle(key: "enforceMfa" | "riskBasedAuth" | "autoBlockHighRisk" | "sessionRecording" | "ipAllowlistEnabled", currentVal: boolean) {
+    if (!securitySettings) return;
+    updateSecuritySettings({
+        applicationId: appId,
+        [key]: !currentVal
+    });
+  }
 
   if (app === undefined || stats === undefined) {
     return (
@@ -104,12 +117,7 @@ export default function ApplicationDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="rounded-xl gap-2 border-border/60 hover:bg-secondary/50" asChild>
-              <Link href="/dashboard/settings">
-                <Settings className="size-4" />
-                Configure
-              </Link>
-            </Button>
+
             <Button className="rounded-xl gap-2" onClick={() => router.push('/dashboard/applications')}>
               <ArrowLeft className="size-4" />
               Back
@@ -150,37 +158,24 @@ export default function ApplicationDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Analytics Section */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <RiskChart applicationId={appId} />
-          
-          <Card className="rounded-2xl border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 py-4">
-              <div className="flex flex-col gap-1">
-                <CardTitle className="text-base font-semibold">Live Traffic Audit</CardTitle>
-                <CardDescription className="text-xs">Real-time session monitoring for this application</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" className="h-8 text-xs font-medium text-primary hover:bg-primary/5" asChild>
-                <Link href="/dashboard/sessions">Historical Data</Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ActivityTable applicationId={appId} />
-              {stats?.totalSessions === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="size-12 rounded-full bg-secondary/30 flex items-center justify-center mb-4 text-muted-foreground/40">
-                    <Clock className="size-6" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-foreground">No activity for this application</h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[220px]">
-                    Ensure your SDK is correctly initialized with the proper credentials.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      <Tabs defaultValue="sessions" className="w-full flex flex-col">
+        <div className="flex items-center pb-4 border-b border-border/40 mb-2">
+          <TabsList className="bg-secondary/50 rounded-xl p-1 h-auto">
+            <TabsTrigger value="sessions" className="rounded-lg px-4 py-2 text-sm font-medium">Live Sessions</TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-lg px-4 py-2 text-sm font-medium">Security Analytics</TabsTrigger>
+          </TabsList>
         </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Main Tab Section */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <TabsContent value="sessions" className="mt-0 border-none p-0 outline-none">
+              <LiveSessionsPanel applicationId={appId} />
+            </TabsContent>
+            <TabsContent value="analytics" className="mt-0 border-none p-0 outline-none">
+              <AnalyticsPanel applicationId={appId} />
+            </TabsContent>
+          </div>
 
         {/* Sidebar Context Section */}
         <div className="flex flex-col gap-6">
@@ -247,8 +242,37 @@ export default function ApplicationDashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="rounded-2xl border-border/50 bg-card/30 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">Real-Time Security Enforcement</CardTitle>
+              <CardDescription>Policies evaluated in the backend decision engine</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              {[
+                  { key: "enforceMfa", label: "Enforce MFA", desc: "Require Multi-Factor for targeted operations", val: securitySettings?.enforceMfa },
+                  { key: "riskBasedAuth", label: "Risk-Based Step-Up", desc: "Trigger challenges precisely at 0.3 risk", val: securitySettings?.riskBasedAuth },
+                  { key: "autoBlockHighRisk", label: "Auto-Block Threats", desc: "Block connection instantaneously at 0.8 risk", val: securitySettings?.autoBlockHighRisk },
+                  { key: "sessionRecording", label: "Session Recording", desc: "Log session lifecycle telemetry to DB", val: securitySettings?.sessionRecording },
+                  { key: "ipAllowlistEnabled", label: "IP Allowlisting", desc: "Strictly block unrecognized IP sources", val: securitySettings?.ipAllowlistEnabled }
+              ].map((setting) => (
+                  <div key={setting.key} className="flex items-center justify-between">
+                    <div className="flex flex-col gap-0.5 max-w-[200px]">
+                        <Label className="text-sm font-semibold">{setting.label}</Label>
+                        <span className="text-xs text-muted-foreground leading-tight">{setting.desc}</span>
+                    </div>
+                    <Switch 
+                        checked={setting.val || false} 
+                        onCheckedChange={() => handleToggle(setting.key as any, setting.val || false)}
+                        disabled={securitySettings === undefined}
+                    />
+                  </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </div>
+      </Tabs>
     </div>
   )
 }
