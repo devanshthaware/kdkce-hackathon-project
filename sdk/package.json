@@ -1,5 +1,5 @@
 {
-  "name": "@aegis/auth-sdk",
+  "name": "@devanshthaware/aegis-auth",
   "version": "1.0.0",
   "description": "Adaptive authentication SDK with real-time risk-based security and continuous session monitoring",
   "main": "./dist/index.js",
@@ -22,6 +22,10 @@
       "types": "./dist/node/index.d.ts"
     }
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
