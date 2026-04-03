@@ -45,11 +45,22 @@ export default function LoginPage() {
             setRisk(risk);
             addLog("SECURITY", `Login evaluation: ${risk.risk_level} (${(risk.risk_score * 100).toFixed(0)}%)`);
 
-            if (risk.risk_level === "CRITICAL" || risk.risk_level === "HIGH") {
-                // The AlertModal in layout/dashboard will handle the UI
-                addLog("WARN", "High-risk signals detected. Access restricted.");
+            if (risk.decision) {
+                const { type, reason_codes } = risk.decision;
+                addLog("DECISION", `Decision Engine: ${type} - ${reason_codes.join(", ")}`);
+
+                if (type === "BLOCK" || type === "RESTRICT" || type === "CHALLENGE") {
+                    addLog("WARN", `Access policy enforced: ${type}. Verification required.`);
+                } else {
+                    router.push("/dashboard");
+                }
             } else {
-                router.push("/dashboard");
+                // Fallback if decision object missing (compatibility layer)
+                if (risk.risk_level === "CRITICAL" || risk.risk_level === "HIGH") {
+                    addLog("WARN", "High-risk signals detected manually. Access restricted.");
+                } else {
+                    router.push("/dashboard");
+                }
             }
         } catch (err) {
             addLog("ERROR", "Login protection service unavailable.");

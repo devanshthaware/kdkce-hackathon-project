@@ -15,7 +15,7 @@ import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { checkBackendHealth, type HealthStatus } from "@/lib/health";
 
-export type LogLevel = "INFO" | "WARN" | "ERROR" | "SECURITY";
+export type LogLevel = "INFO" | "WARN" | "ERROR" | "SECURITY" | "DECISION";
 
 export interface ThreatLogEntry {
   id: string;
@@ -95,8 +95,8 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
           browser: "Chrome (Demo)",
           location: "Virtual Cloud",
           ip: "127.0.0.1",
-          riskScore: 0.2,
-          status: "safe"
+          score: 0.2,
+          state: "NEW"
         }).then(id => {
           setSessionId(id);
           addLog("INFO", "Connected to AegisAuth Cloud. Session initialized.");
@@ -118,8 +118,8 @@ export function RiskProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (currentServerSession) {
       const newRisk: RiskResponse = {
-        risk_score: currentServerSession.riskScore,
-        risk_level: currentServerSession.status.toUpperCase() as any,
+        risk_score: (currentServerSession as any).score,
+        risk_level: (currentServerSession as any).state as any,
         components: { ml: 1 },
         timestamp: currentServerSession.loginTime
       };

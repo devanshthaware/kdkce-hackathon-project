@@ -52,7 +52,6 @@ export class AegisAuth {
    * Initialize AegisAuth client
    */
   constructor(config: AegisConfig) {
-    // Validate configuration
     const validation = validateConfig(config);
     if (!validation.valid) {
       throw new ConfigError(
@@ -68,7 +67,6 @@ export class AegisAuth {
     this.retries = config.retries ?? 1;
     this.logger = createLogger(config.debug ?? false);
 
-    // Initialize axios client
     this.client = axios.create({
       timeout: this.timeout,
       headers: {
@@ -81,7 +79,6 @@ export class AegisAuth {
     this.logger.log("AegisAuth client initialized", {
       endpoint: this.endpoint,
       autoMonitor: this.autoMonitor,
-      monitorInterval: this.monitorInterval,
     });
   }
 
@@ -89,20 +86,19 @@ export class AegisAuth {
    * Protect login with risk assessment
    */
   async protectLogin(payload: LoginPayload): Promise<RiskResponse> {
+    const correlationId = generateRequestId();
     try {
-      this.logger.log("Protecting login", { userId: payload.userId });
+      this.logger.log("Protecting login", { userId: payload.userId, correlationId });
 
-      // Collect current fingerprint
       const fingerprint = collectFingerprint();
       this.lastFingerprint = fingerprint;
 
-      // Prepare risk assessment payload
       const assessmentPayload: RiskAssessmentPayload = {
         ...payload,
         fingerprint,
+        correlationId,
       };
 
-      // Call backend with retry and timeout
       const response = await withRetry(
         async () => {
           return withTimeout(
@@ -117,26 +113,20 @@ export class AegisAuth {
       );
 
       const risk: RiskResponse = response.data;
+      if (!risk.correlationId) risk.correlationId = correlationId;
 
-      // Validate response
       if (!this.validateRiskResponse(risk)) {
         throw new InvalidResponseError("Invalid risk response from backend", risk);
       }
 
-      // Add timestamp if not present
-      if (!risk.timestamp) {
-        risk.timestamp = Date.now();
-      }
-
-      // Cache the result
+      if (!risk.timestamp) risk.timestamp = Date.now();
       this.cachedRisk = risk;
 
       this.logger.log("Login protected", {
         riskLevel: risk.risk_level,
-        riskScore: risk.risk_score,
+        correlationId: risk.correlationId,
       });
 
-      // Auto-start monitoring if enabled
       if (this.autoMonitor && !isMonitoring()) {
         this.startMonitoring(() => {
           this.logger.log("Automatic monitoring check triggered");
@@ -146,7 +136,7 @@ export class AegisAuth {
       return risk;
     } catch (error) {
       this.logger.error("protectLogin failed", error);
-      return this.handleError(error);
+      return this.handleError(error, correlationId);
     }
   }
 
@@ -154,10 +144,10 @@ export class AegisAuth {
    * Check risk without full login flow
    */
   async checkRisk(payload?: Partial<LoginPayload>): Promise<RiskResponse> {
+    const correlationId = generateRequestId();
     try {
-      this.logger.log("Checking risk");
+      this.logger.log("Checking risk", { correlationId });
 
-      // Use minimal payload if not provided
       const loginPayload: LoginPayload = {
         userId: payload?.userId || "anonymous",
         email: payload?.email || "anonymous@aegis.local",
@@ -169,6 +159,7 @@ export class AegisAuth {
       const assessmentPayload: RiskAssessmentPayload = {
         ...loginPayload,
         fingerprint,
+        correlationId,
       };
 
       const response = await withRetry(
@@ -185,20 +176,18 @@ export class AegisAuth {
       );
 
       const risk: RiskResponse = response.data;
+      if (!risk.correlationId) risk.correlationId = correlationId;
 
       if (!this.validateRiskResponse(risk)) {
         throw new InvalidResponseError("Invalid risk response from backend", risk);
       }
 
-      if (!risk.timestamp) {
-        risk.timestamp = Date.now();
-      }
-
+      if (!risk.timestamp) risk.timestamp = Date.now();
       this.cachedRisk = risk;
       return risk;
     } catch (error) {
       this.logger.error("checkRisk failed", error);
-      return this.handleError(error);
+      return this.handleError(error, correlationId);
     }
   }
 
@@ -207,16 +196,11 @@ export class AegisAuth {
    */
   startMonitoring(handler: MonitoringCallback): string {
     if (isMonitoring()) {
-      this.logger.log("Monitoring already active");
       return this.monitoringId || "unknown";
     }
 
     this.monitoringId = generateRequestId();
-
-    this.logger.log("Starting session monitoring", {
-      interval: this.monitorInterval,
-      monitoringId: this.monitoringId,
-    });
+    this.logger.log("Starting session monitoring", { monitoringId: this.monitoringId });
 
     startSessionMonitoring(this.monitorInterval, async () => {
       try {
@@ -234,141 +218,64 @@ export class AegisAuth {
    * Stop continuous session monitoring
    */
   stopMonitoring(): void {
-    if (!isMonitoring()) {
-      this.logger.log("Monitoring not active");
-      return;
-    }
-
-    this.logger.log("Stopping session monitoring", {
-      monitoringId: this.monitoringId,
-    });
-
+    if (!isMonitoring()) return;
+    this.logger.log("Stopping session monitoring", { monitoringId: this.monitoringId });
     stopSessionMonitoring();
     this.monitoringId = null;
   }
 
-  /**
-   * Check if risk is HIGH or CRITICAL
-   */
-  isHighRisk(risk: RiskResponse): boolean {
-    return risk.risk_level === "HIGH" || risk.risk_level === "CRITICAL";
-  }
-
-  /**
-   * Check if risk is CRITICAL
-   */
-  isCritical(risk: RiskResponse): boolean {
-    return risk.risk_level === "CRITICAL";
-  }
-
-  /**
-   * Check if risk is LOW
-   */
-  isLowRisk(risk: RiskResponse): boolean {
-    return risk.risk_level === "LOW";
-  }
-
-  /**
-   * Check if fingerprint changed significantly
-   */
   hasDeviceChanged(): boolean {
     if (!this.lastFingerprint) return false;
-
-    const currentFingerprint = collectFingerprint();
-    return !compareFingerprints(this.lastFingerprint, currentFingerprint);
+    return !compareFingerprints(this.lastFingerprint, collectFingerprint());
   }
 
-  /**
-   * Get last cached risk assessment
-   */
   getCachedRisk(): RiskResponse | null {
     return this.cachedRisk;
   }
 
-  /**
-   * Get current monitoring status
-   */
   getMonitoringStatus(): boolean {
     return isMonitoring();
   }
 
-  /**
-   * Validate risk response structure
-   */
   private validateRiskResponse(response: any): response is RiskResponse {
-    if (!response || typeof response !== "object") {
-      return false;
-    }
-
+    if (!response || typeof response !== "object") return false;
     const validRiskLevels: RiskLevel[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-
     return (
       typeof response.risk_score === "number" &&
       response.risk_score >= 0 &&
       response.risk_score <= 1 &&
       validRiskLevels.includes(response.risk_level) &&
-      typeof response.components === "object"
+      typeof response.components === "object" &&
+      typeof response.correlationId === "string"
     );
   }
 
-  /**
-   * Handle errors with fallback strategy
-   */
-  private handleError(error: any): RiskResponse {
+  private handleError(error: any, correlationId: string): RiskResponse {
     this.logger.error("Error handled with fallback", error);
 
-    // Fallback to LOW risk with warning if backend is unreachable
+    const fallback: RiskResponse = {
+      risk_score: 0.2,
+      risk_level: "LOW",
+      components: { fallback: 1 },
+      timestamp: Date.now(),
+      correlationId: correlationId,
+    };
+
     if (axios.isAxiosError(error)) {
-      if (!error.response) {
-        // Network error
-        console.warn(
-          "[AegisAuth] Backend unreachable, using LOW risk fallback"
-        );
-        return {
-          risk_score: 0.2,
-          risk_level: "LOW",
-          components: { fallback: 1 },
-          timestamp: Date.now(),
-        };
+      if (!error.response || error.response.status >= 500) {
+        console.warn("[AegisAuth] Backend unreachable/error, using fallback");
+        return fallback;
       }
-
-      if (error.response.status >= 500) {
-        // Server error
-        console.warn(
-          "[AegisAuth] Backend error, using LOW risk fallback"
-        );
-        return {
-          risk_score: 0.2,
-          risk_level: "LOW",
-          components: { fallback: 1 },
-          timestamp: Date.now(),
-        };
-      }
-
-      // Other HTTP errors
-      const status = error.response.status;
-      throw new NetworkError(
-        `Risk assessment failed: ${error.message}`,
-        status
-      );
+      throw new NetworkError(`Risk assessment failed: ${error.message}`, error.response.status);
     }
 
-    // Timeout error
     if (error instanceof Error && error.message.includes("timeout")) {
-      throw new TimeoutError(
-        `Risk assessment timed out after ${this.timeout}ms`,
-        this.timeout
-      );
+      throw new TimeoutError(`Risk assessment timed out after ${this.timeout}ms`, this.timeout);
     }
 
-    throw new AegisError(
-      error instanceof Error ? error.message : "Unknown error occurred"
-    );
+    throw new AegisError(error instanceof Error ? error.message : "Unknown error occurred");
   }
 
-  /**
-   * Cleanup resources
-   */
   destroy(): void {
     this.stopMonitoring();
     this.lastFingerprint = null;

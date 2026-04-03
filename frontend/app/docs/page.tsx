@@ -135,8 +135,13 @@ aegis.startMonitoring((updatedRisk) => {
                     <CodeBlock
                         language="json"
                         code={`{
-  "risk_score": 0.18,      // Normalized float [0-1]
+  "risk_score": 0.18,      // Normalized float [0.0-1.0]
   "risk_level": "LOW",     // LOW | MEDIUM | HIGH | CRITICAL
+  "decision": {            // Decision Engine output
+    "type": "ALLOW",       // ALLOW | CHALLENGE | RESTRICT | BLOCK
+    "reason_codes": ["LOW_RISK_VERIFIED"],
+    "required_actions": [{"type": "NONE"}]
+  },
   "components": {          // Weighted contribution scores
     "login_anomaly": 0.05,
     "device_trust": 0.1,

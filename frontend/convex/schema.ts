@@ -2,15 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-    activities: defineTable({
-        action: v.string(),
-        applicationId: v.id("applications"),
-        device: v.string(),
-        location: v.string(),
-        risk: v.string(),
+    events: defineTable({
+        type: v.string(), // SIGNAL_RECEIVED | RISK_CALCULATED | DECISION_MADE | ACTION_DISPATCHED | ACTION_EXECUTED | STATE_TRANSITIONED
+        sessionId: v.id("sessions"),
+        correlationId: v.string(),
+        payload: v.any(),
         timestamp: v.float64(),
-        userEmail: v.string(),
-    }).index("by_application", ["applicationId"]),
+        applicationId: v.id("applications"),
+    })
+    .index("by_session", ["sessionId"])
+    .index("by_correlation", ["correlationId"])
+    .index("by_application", ["applicationId"]),
     applications: defineTable({
         apiKey: v.string(),
         appId: v.string(),
@@ -58,9 +60,12 @@ export default defineSchema({
         ip: v.string(),
         location: v.string(),
         loginTime: v.float64(),
-        riskScore: v.float64(),
-        status: v.string(),
+        score: v.float64(),
+        state: v.string(), // "NEW" | "EVALUATING" | "ACTIVE" | "CHALLENGED" | "RESTRICTED" | "BLOCKED" | "TERMINATED"
+        stateVersion: v.float64(),
+        updatedAt: v.float64(),
         userEmail: v.string(),
+        correlationId: v.string(),
     }).index("by_application", ["applicationId"]),
     supportMessages: defineTable({
         content: v.string(),

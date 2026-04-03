@@ -19,11 +19,11 @@ const columns = [
       <div className="flex items-center gap-2">
         <div className="h-2 w-12 rounded-full overflow-hidden bg-muted">
           <div 
-            className={`h-full ${item.riskScore > 80 ? "bg-rose-500 shadow-[0_0_8px_theme(colors.rose.500)]" : item.riskScore > 60 ? "bg-orange-500" : "bg-yellow-500"}`}
-            style={{ width: `${item.riskScore}%` }}
+            className={`h-full ${item.score > 0.8 ? "bg-rose-500 shadow-[0_0_8px_theme(colors.rose.500)]" : item.score > 0.6 ? "bg-orange-500" : "bg-yellow-500"}`}
+            style={{ width: `${Math.round(item.score * 100)}%` }}
           />
         </div>
-        <span className="font-mono text-xs font-bold w-6">{item.riskScore}</span>
+        <span className="font-mono text-xs font-bold w-12">{Math.round(item.score * 100)}%</span>
       </div>
     )
   },

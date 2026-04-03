@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
+import { transitionSession, SessionState } from "./sessionState";
+import { emitEvent } from "./events";
 
 export const list = query({
     args: { 
@@ -13,7 +15,6 @@ export const list = query({
 
         const userId = identity.subject;
 
-        // Fetch apps matching the organization if provided, else by user (legacy fallback)
         let apps;
         if (args.organizationId) {
             apps = await ctx.db
@@ -30,7 +31,6 @@ export const list = query({
         const appIds = new Set(apps.map((app) => app._id.toString()));
 
         if (args.applicationId) {
-            // Verify ownership explicitly if requesting a specific app
             if (!appIds.has(args.applicationId.toString())) {
                 throw new Error("Unauthorized access to this application");
             }
@@ -42,18 +42,16 @@ export const list = query({
                 .collect();
         }
 
-        // Fetch all sessions for owned apps
         let sessions = [];
         for (const app of apps) {
             const appSessions = await ctx.db
                 .query("sessions")
                 .withIndex("by_application", (q) => q.eq("applicationId", app._id))
                 .order("desc")
-                .take(50); // limit per app
+                .take(50);
             sessions.push(...appSessions);
         }
 
-        // Return combined sessions sorted locally
         return sessions.sort((a, b) => b.loginTime - a.loginTime).slice(0, 100);
     },
 });
@@ -69,7 +67,6 @@ export const getStats = query({
 
         const userId = identity.subject;
 
-        // Fetch apps for the selected org
         let apps = [];
         if (args.organizationId) {
             apps = await ctx.db
@@ -92,27 +89,25 @@ export const getStats = query({
             sessions.push(...appSessions);
         }
 
-        const highRisk = sessions.filter(s => s.status === "suspicious" || s.status === "blocked").length;
+        const highRisk = sessions.filter(s => s.state === "CHALLENGED" || s.state === "RESTRICTED" || s.state === "BLOCKED").length;
         const avgRisk = sessions.length > 0
-            ? sessions.reduce((acc, s) => acc + s.riskScore, 0) / sessions.length
+            ? sessions.reduce((acc, s) => acc + s.score, 0) / sessions.length
             : 0;
 
-        // Active sessions (last 24 hours)
         const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
         const activeSessions = sessions.filter(s => s.loginTime > twentyFourHoursAgo).length;
 
-        // Risk distribution by risk score
-        const total = sessions.length || 1; // avoid division by 0
-        const low = sessions.filter(s => s.riskScore <= 30).length;
-        const medium = sessions.filter(s => s.riskScore > 30 && s.riskScore <= 60).length;
-        const high = sessions.filter(s => s.riskScore > 60 && s.riskScore <= 85).length;
-        const critical = sessions.filter(s => s.riskScore > 85).length;
+        const total = sessions.length || 1;
+        const low = sessions.filter(s => s.score <= 0.3).length;
+        const medium = sessions.filter(s => s.score > 0.3 && s.score <= 0.6).length;
+        const high = sessions.filter(s => s.score > 0.6 && s.score <= 0.8).length;
+        const critical = sessions.filter(s => s.score > 0.8).length;
 
         return {
             totalSessions: sessions.length,
             highRiskAlerts: highRisk,
             activeApps: apps.filter(a => a.status === "Active").length,
-            avgRiskScore: parseFloat(avgRisk.toFixed(1)),
+            avgRiskScore: parseFloat(avgRisk.toFixed(2)),
             activeSessions,
             riskDistribution: {
                 low: Math.round((low / total) * 100),
@@ -132,7 +127,6 @@ export const getAnalytics = query({
 
         const userId = identity.subject;
 
-        // Fetch apps for the selected org
         let apps = [];
         if (args.organizationId) {
             apps = await ctx.db
@@ -155,8 +149,6 @@ export const getAnalytics = query({
             sessions.push(...appSessions);
         }
 
-        // Mocking some time-based distribution for now since we don't have historical data in the schema yet
-        // We tie the volumes to actual valid user session count for realism
         const baseVolume = sessions.length > 0 ? (sessions.length / 10) : 0; 
 
         const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -172,7 +164,6 @@ export const getAnalytics = query({
             dayStats[day] = { low: 0, medium: 0, high: 0, critical: 0, trusted: 0, unknown: 0, untrusted: 0 };
         });
 
-        // Add a slight base layer of realism so graphs aren't flat if volume is very low, scaled to users volume
         last7Days.forEach(day => {
             dayStats[day].low = Math.floor(Math.random() * baseVolume * 0.7) + (sessions.length > 0 ? 1 : 0);
             dayStats[day].medium = Math.floor(Math.random() * baseVolume * 0.2);
@@ -183,22 +174,20 @@ export const getAnalytics = query({
             dayStats[day].untrusted = Math.floor(baseVolume * 0.05);
         });
 
-        // Incorporate real sessions
         sessions.forEach(s => {
             const d = new Date(s.loginTime);
-            // Only include if it's within the last 7 days window (roughly)
             const timeDiff = today.getTime() - d.getTime();
             if (timeDiff <= 7 * 24 * 60 * 60 * 1000) {
                 const dayName = daysOfWeek[d.getDay()];
                 if (dayStats[dayName]) {
-                    if (s.riskScore <= 30) dayStats[dayName].low++;
-                    else if (s.riskScore <= 60) dayStats[dayName].medium++;
-                    else if (s.riskScore <= 85) dayStats[dayName].high++;
+                    if (s.score <= 0.3) dayStats[dayName].low++;
+                    else if (s.score <= 0.6) dayStats[dayName].medium++;
+                    else if (s.score <= 0.8) dayStats[dayName].high++;
                     else dayStats[dayName].critical++;
 
                     if (s.device.includes("Unknown") || s.browser.includes("Tor")) {
                         dayStats[dayName].untrusted++;
-                    } else if (s.riskScore > 50) {
+                    } else if (s.score > 0.5) {
                         dayStats[dayName].unknown++;
                     } else {
                         dayStats[dayName].trusted++;
@@ -229,11 +218,7 @@ export const getAnalytics = query({
             high: Math.floor(Math.random() * baseVolume * 0.1),
         }));
 
-        return {
-            riskDist,
-            deviceTrust,
-            hourlyRiskDist,
-        };
+        return { riskDist, deviceTrust, hourlyRiskDist };
     },
 });
 
@@ -245,32 +230,43 @@ export const createSession = mutation({
         browser: v.string(),
         location: v.string(),
         ip: v.string(),
-        riskScore: v.number(),
-        status: v.string(),
+        score: v.number(),
     },
     handler: async (ctx, args) => {
         const app = await ctx.db.get(args.applicationId);
+        const correlationId = `corr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
         const sessionId = await ctx.db.insert("sessions", {
             ...args,
             loginTime: Date.now(),
+            state: "NEW", 
+            stateVersion: 0,
+            updatedAt: Date.now(),
+            correlationId,
         });
 
-        // Also log to activities
-        await ctx.db.insert("activities", {
+        // 1. Emit Initial Signal
+        await emitEvent(ctx.db, {
+            type: "SIGNAL_RECEIVED",
+            sessionId,
+            correlationId,
             applicationId: args.applicationId,
-            userEmail: args.userEmail,
-            action: "Login Attempt",
-            device: args.device,
-            location: args.location,
-            risk: args.status,
-            timestamp: Date.now(),
+            payload: {
+                userEmail: args.userEmail,
+                device: args.device,
+                ip: args.ip,
+                browser: args.browser
+            }
         });
 
-        // Trigger ML assessment if enabled
+        // 2. Enter state machine
+        await transitionSession(ctx.db, sessionId, "EVALUATING", "SESSION_CREATED", correlationId);
+
+        // 3. Trigger ML assessment with correlationId
         if (app?.mlEnhancement) {
             await ctx.scheduler.runAfter(0, (api as any).ml.assessRisk, {
                 sessionId,
+                correlationId,
                 context: {
                     userEmail: args.userEmail,
                     device: args.device,
@@ -286,27 +282,24 @@ export const createSession = mutation({
 export const updateSessionRisk = mutation({
     args: {
         sessionId: v.id("sessions"),
-        riskScore: v.number(),
-        status: v.string(),
+        score: v.number(),
+        state: v.string(),
+        correlationId: v.optional(v.string())
     },
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
-        if (!session) return;
+        if (!session || session.state === "TERMINATED") return;
 
-        await ctx.db.patch(args.sessionId, {
-            riskScore: args.riskScore,
-            status: args.status,
-        });
+        const correlationId = args.correlationId ?? session.correlationId;
 
-        // Also log the update as an activity
-        await ctx.db.insert("activities", {
-            applicationId: session.applicationId,
-            userEmail: session.userEmail,
-            action: "Risk Update",
-            device: session.device,
-            location: session.location,
-            risk: args.status,
-            timestamp: Date.now(),
-        });
+        await ctx.db.patch(args.sessionId, { score: args.score });
+
+        await transitionSession(
+            ctx.db, 
+            args.sessionId, 
+            args.state as SessionState, 
+            "MANUAL_OR_EXTERNAL_RISK_UPDATE",
+            correlationId
+        );
     },
 });

@@ -39,10 +39,10 @@ export const adminApi = {
   // Fetch real-time threat logs
   getThreatLogs: async () => {
     return [
-      { id: 1, timestamp: "10:41:01", project: "PaymentApp", riskScore: 72, type: "Geo anomaly", status: "Flagged" },
-      { id: 2, timestamp: "10:41:03", project: "FintechAPI", riskScore: 88, type: "Privilege escalation", status: "Blocked" },
-      { id: 3, timestamp: "10:42:15", project: "EcomStore", riskScore: 45, type: "Session hijack", status: "Monitored" },
-      { id: 4, timestamp: "10:43:22", project: "HealthPortal", riskScore: 94, type: "Brute force", status: "Blocked" },
+      { id: 1, timestamp: "10:41:01", project: "PaymentApp", score: 0.72, type: "Geo anomaly", status: "Flagged" },
+      { id: 2, timestamp: "10:41:03", project: "FintechAPI", score: 0.88, type: "Privilege escalation", status: "Blocked" },
+      { id: 3, timestamp: "10:42:15", project: "EcomStore", score: 0.45, type: "Session hijack", status: "Monitored" },
+      { id: 4, timestamp: "10:43:22", project: "HealthPortal", score: 0.94, type: "Brute force", status: "Blocked" },
     ]
   },
 

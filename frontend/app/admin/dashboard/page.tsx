@@ -25,8 +25,8 @@ export default function AdminDashboard() {
     { 
       header: "Risk Score", 
       accessor: (item: any) => (
-        <span className={`font-mono font-bold ${item.riskScore > 80 ? "text-rose-400" : item.riskScore > 60 ? "text-orange-400" : "text-yellow-400"}`}>
-          {item.riskScore}
+        <span className={`font-mono font-bold ${item.score > 0.8 ? "text-rose-400" : item.score > 0.6 ? "text-orange-400" : "text-yellow-400"}`}>
+          {Math.round(item.score * 100)}%
         </span>
       )
     },

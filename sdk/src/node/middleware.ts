@@ -40,19 +40,22 @@ export function createAegisMiddleware(client: AegisAuthNode) {
       (req as AegisRequest).aegisRisk = risk;
       (req as AegisRequest).aegisUserId = userId;
 
-      // Block if critical
-      if (client.isCritical(risk)) {
-        return res.status(403).json({
-          error: "Access denied",
-          message: "Critical risk detected",
-          riskLevel: risk.risk_level,
-        });
-      }
+      // Decision Execution (Single Authority)
+      if (risk.decision) {
+        const { type, reason_codes } = risk.decision;
+        
+        if (type === "BLOCK") {
+          return res.status(403).json({
+            error: "Access denied",
+            message: "Decision Engine: Blocked",
+            reasons: reason_codes,
+          });
+        }
 
-      // Warn if high risk
-      if (client.isHighRisk(risk)) {
-        res.setHeader("X-Aegis-Risk-Level", risk.risk_level);
-        // Handler can check this header to enforce MFA
+        if (type === "RESTRICT" || type === "CHALLENGE") {
+          res.setHeader("X-Aegis-Decision", type);
+          res.setHeader("X-Aegis-Actions", JSON.stringify(risk.decision.required_actions));
+        }
       }
 
       next();
@@ -75,7 +78,7 @@ export function aegisMiddleware(config: AegisConfig) {
 /**
  * Decorator for protecting Express routes
  */
-export function requireLowRisk(client: AegisAuthNode) {
+export function requireLowRisk() {
   return (req: any, res: any, next: any) => {
     const risk = (req as AegisRequest).aegisRisk;
 
@@ -86,11 +89,11 @@ export function requireLowRisk(client: AegisAuthNode) {
       });
     }
 
-    if (client.isHighRisk(risk)) {
+    if (risk.decision?.type === "BLOCK" || risk.decision?.type === "RESTRICT") {
       return res.status(429).json({
-        error: "Anomalous activity detected",
+        error: "Access restricted by Decision Engine",
         message: "Please verify your identity",
-        riskLevel: risk.risk_level,
+        decision: risk.decision?.type,
       });
     }
 

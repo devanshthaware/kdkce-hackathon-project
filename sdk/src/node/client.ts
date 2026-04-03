@@ -91,20 +91,6 @@ export class AegisAuthNode {
   }
 
   /**
-   * Check if risk is HIGH or CRITICAL
-   */
-  isHighRisk(risk: RiskResponse): boolean {
-    return risk.risk_level === "HIGH" || risk.risk_level === "CRITICAL";
-  }
-
-  /**
-   * Check if risk is CRITICAL
-   */
-  isCritical(risk: RiskResponse): boolean {
-    return risk.risk_level === "CRITICAL";
-  }
-
-  /**
    * Validate risk response
    */
   private validateRiskResponse(response: any): response is RiskResponse {

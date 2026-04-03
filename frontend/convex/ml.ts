@@ -1,55 +1,30 @@
 import { v } from "convex/values";
 import { action, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
+import { evaluateDecision, DecisionType } from "./decisions";
+import { transitionSession, SessionState } from "./sessionState";
+import { emitEvent } from "./events";
 
 export const assessRisk = action({
     args: {
         sessionId: v.id("sessions"),
-        // In a real scenario, we'd pass more context from the request
+        correlationId: v.string(),
         context: v.any(),
     },
     handler: async (ctx, args) => {
-        // 1. Fetch session data if needed (actions can call queries)
-        // For now we'll construct a mock request based on the identified schema
         const mlUrl = process.env.ML_BACKEND_URL || "http://localhost:8000";
 
+        // Structured ML request payload
         const requestBody = {
             login: {
-                username: "user@example.com", // This would come from session/context
-                ip_address: "192.168.1.1",
-                user_agent: "Mozilla/5.0...",
+                username: args.context.userEmail || "user@example.com",
+                ip_address: args.context.ip || "192.168.1.1",
+                user_agent: "AegisAuth-SDK/1.0",
                 login_timestamp: new Date().toISOString(),
+                correlation_id: args.correlationId,
             },
-            session: {
-                session_id: args.sessionId,
-                api_calls_per_min: 12.5,
-                sensitive_endpoint_access: 0,
-                session_duration_minutes: 5.0,
-                request_entropy: 3.2,
-                data_download_mb: 1.2,
-                token_reuse_flag: 0,
-            },
-            device: {
-                device_id: "dev_123",
-                successful_logins: 50,
-                failed_attempts: 1,
-                mfa_failures: 0,
-                device_age_days: 90,
-                days_since_last_seen: 0,
-                past_anomaly_count: 0,
-                credential_stuffing_pattern_flag: 0,
-            },
-            baseline: {
-                avg_login_velocity: 1.5,
-                avg_api_calls_per_min: 10.0,
-                ip_reputation_score: 0.9,
-            },
-            global_threat: {
-                active_botnets_count: 5,
-                recent_data_breach_events: 1,
-                global_anomaly_index: 0.2,
-            },
-            rule_based_score: 10.0,
+            session: { session_id: args.sessionId },
+            device: { device_id: args.context.device || "dev_unknown" }
         };
 
         try {
@@ -59,23 +34,32 @@ export const assessRisk = action({
                 body: JSON.stringify(requestBody),
             });
 
-            if (!response.ok) {
-                throw new Error(`ML Backend responded with ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`ML Backend responded with ${response.status}`);
 
             const result = await response.json();
+            
+            // 2. Sync results and trigger downstream events via mutation
+            const decision = evaluateDecision(result.risk_score, result.risk_level);
 
-            // 2. Sync results back to the database
+            const stateMap: Record<DecisionType, SessionState> = {
+                ALLOW: "ACTIVE",
+                CHALLENGE: "CHALLENGED",
+                RESTRICT: "RESTRICTED",
+                BLOCK: "BLOCKED"
+            };
+
             await ctx.runMutation(api.ml.syncMLResults, {
                 sessionId: args.sessionId,
-                riskScore: result.risk_score,
-                status: result.risk_level.toLowerCase(),
+                correlationId: args.correlationId,
+                score: result.risk_score,
+                state: stateMap[decision.type],
+                decisionType: decision.type,
+                riskResult: result
             });
 
-            return result;
+            return { ...result, decision };
         } catch (error) {
             console.error("ML Risk Assessment failed:", error);
-            // Fallback or report error
             return null;
         }
     },
@@ -84,13 +68,58 @@ export const assessRisk = action({
 export const syncMLResults = mutation({
     args: {
         sessionId: v.id("sessions"),
-        riskScore: v.number(),
-        status: v.string(),
+        correlationId: v.string(),
+        score: v.number(),
+        state: v.string(),
+        decisionType: v.string(),
+        riskResult: v.any(),
     },
     handler: async (ctx, args) => {
-        await ctx.db.patch(args.sessionId, {
-            riskScore: args.riskScore,
-            status: args.status,
+        const session = await ctx.db.get(args.sessionId);
+        if (!session || session.state === "TERMINATED") return;
+
+        // 1. Emit RISK_CALCULATED
+        await emitEvent(ctx.db, {
+            type: "RISK_CALCULATED",
+            sessionId: args.sessionId,
+            correlationId: args.correlationId,
+            applicationId: session.applicationId,
+            payload: args.riskResult
         });
+
+        // 2. Emit DECISION_MADE
+        await emitEvent(ctx.db, {
+            type: "DECISION_MADE",
+            sessionId: args.sessionId,
+            correlationId: args.correlationId,
+            applicationId: session.applicationId,
+            payload: {
+                decision: args.decisionType,
+                target_state: args.state
+            }
+        });
+
+        // 3. Emit ACTION_DISPATCHED
+        await emitEvent(ctx.db, {
+            type: "ACTION_DISPATCHED",
+            sessionId: args.sessionId,
+            correlationId: args.correlationId,
+            applicationId: session.applicationId,
+            payload: {
+                dispatched_at: Date.now(),
+                context: "ML_ORCHESTRATED_DECISION"
+            }
+        });
+
+        // 4. Persist score and transition state
+        await ctx.db.patch(args.sessionId, { score: args.score });
+
+        await transitionSession(
+            ctx.db, 
+            args.sessionId, 
+            args.state as SessionState, 
+            "ML_ASSESSMENT_COMPLETED",
+            args.correlationId
+        );
     },
 });

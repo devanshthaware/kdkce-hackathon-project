@@ -9,10 +9,10 @@ export function StatusBadge({ status, variant }: StatusBadgeProps) {
   const getVariant = () => {
     if (variant) return variant
     
-    const s = status.toLowerCase()
-    if (s === "active" || s === "healthy" || s === "safe" || s === "success") return "success"
-    if (s === "inactive" || s === "down" || s === "blocked" || s === "critical") return "destructive"
-    if (s === "warning" || s === "suspicious" || s === "pending") return "warning"
+    const s = status.toUpperCase()
+    if (s === "ACTIVE" || s === "SAFE" || s === "SUCCESS" || s === "HEALTHY") return "success"
+    if (s === "BLOCKED" || s === "CRITICAL" || s === "INACTIVE" || s === "DOWN") return "destructive"
+    if (s === "EVALUATING" || s === "CHALLENGED" || s === "RESTRICTED" || s === "WARNING" || s === "SUSPICIOUS" || s === "PENDING") return "warning"
     
     return "secondary"
   }

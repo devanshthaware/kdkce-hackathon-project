@@ -55,13 +55,31 @@ export interface LoginPayload {
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 /**
+ * Canonical Decision interface
+ */
+export type DecisionType = "ALLOW" | "CHALLENGE" | "RESTRICT" | "BLOCK";
+
+export interface DecisionAction {
+  type: "MFA_REQUIRED" | "SESSION_TERMINATE" | "ACCESS_RESTRICT" | "NONE";
+  payload?: Record<string, any>;
+}
+
+export interface Decision {
+  type: DecisionType;
+  reason_codes: string[];
+  required_actions: DecisionAction[];
+}
+
+/**
  * Risk response from backend
  */
 export interface RiskResponse {
   risk_score: number;
   risk_level: RiskLevel;
   components: Record<string, number>;
+  decision?: Decision;
   timestamp?: number;
+  correlationId: string;
 }
 
 /**
@@ -79,6 +97,7 @@ export interface SessionPayload {
  */
 export interface RiskAssessmentPayload extends LoginPayload {
   fingerprint: FingerprintPayload;
+  correlationId?: string;
 }
 
 /**

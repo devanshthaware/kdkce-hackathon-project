@@ -22,7 +22,7 @@ def aggregate_risk(
     Risk = (0.20 × Login) + (0.20 × Session) + (0.15 × DeviceTrustInverse) +
            (0.15 × Baseline) + (0.10 × GlobalThreat) + (0.20 × RuleBasedPlaceholder)
     
-    Normalized to 0-100 scale.
+    Normalized to 0.0-1.0 scale.
     
     Args:
         login_result: Result from login predictor
@@ -34,7 +34,7 @@ def aggregate_risk(
     
     Returns:
         Dictionary containing:
-        - risk_score: Aggregated risk score (0-100)
+        - risk_score: Aggregated risk score (0.0-1.0)
         - risk_level: Risk level (LOW, MEDIUM, HIGH, CRITICAL)
         - components: Individual component scores
     """
@@ -103,7 +103,7 @@ def _classify_risk_level(risk_score: float) -> str:
     Classify risk score into risk level.
     
     Args:
-        risk_score: Risk score (0-100)
+        risk_score: Risk score (0.0-1.0)
     
     Returns:
         Risk level string (LOW, MEDIUM, HIGH, CRITICAL)
