@@ -1,9 +1,25 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { GenericQueryCtx } from "convex/server";
+
+/**
+ * Access Control Helper: Ensured only ADMINs can access global operations.
+ */
+async function isAdmin(ctx: GenericQueryCtx<any>) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return false;
+    
+    // In production, roles would be stored in a 'users' table or custom claims.
+    // For this build, we use a curated list of admin emails from environment.
+    const admins = (process.env.ADMIN_EMAILS || "omkar@aegis.auth,admin@aegis.auth").split(",");
+    return admins.includes(identity.email ?? "");
+}
 
 export const getGlobalStats = query({
     args: {},
     handler: async (ctx) => {
+        if (!await isAdmin(ctx)) throw new Error("Forbidden: Admin access required");
+        
         const applications = await ctx.db.query("applications").collect();
         const sessions = await ctx.db.query("sessions").collect();
         const events = await ctx.db.query("events").collect();
@@ -11,10 +27,7 @@ export const getGlobalStats = query({
         const developerIds = new Set(applications.map(app => app.userId));
         const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
         
-        // Count SIGNAL_RECEIVED as API requests
         const requestsToday = events.filter(e => e.type === "SIGNAL_RECEIVED" && e.timestamp > twentyFourHoursAgo).length;
-
-        // Threats via high risk scores in sessions
         const threatsDetected = sessions.filter(s => s.score > 0.7).length;
 
         return {
@@ -29,6 +42,8 @@ export const getGlobalStats = query({
 export const getUsers = query({
     args: {},
     handler: async (ctx) => {
+        if (!await isAdmin(ctx)) throw new Error("Forbidden: Admin access required");
+        
         const applications = await ctx.db.query("applications").collect();
         const userMap = new Map();
         
@@ -53,6 +68,7 @@ export const getUsers = query({
 export const getProjects = query({
     args: {},
     handler: async (ctx) => {
+        if (!await isAdmin(ctx)) throw new Error("Forbidden: Admin access required");
         const apps = await ctx.db.query("applications").collect();
         const sessions = await ctx.db.query("sessions").collect();
 
@@ -75,7 +91,8 @@ export const getProjects = query({
 export const getThreatLogs = query({
     args: { limit: v.optional(v.number()) },
     handler: async (ctx, args) => {
-        // We look for STATE_TRANSITIONED and DECISION_MADE for the main threat log focus
+        if (!await isAdmin(ctx)) throw new Error("Forbidden: Admin access required");
+
         const logs = await ctx.db
             .query("events")
             .filter(q => q.or(
@@ -88,7 +105,6 @@ export const getThreatLogs = query({
 
         const apps = await ctx.db.query("applications").collect();
         const appMap = new Map(apps.map(a => [a._id, a.name]));
-
         const sessions = await ctx.db.query("sessions").collect();
         const sessionMap = new Map(sessions.map(s => [s._id, s]));
 
@@ -110,6 +126,7 @@ export const getThreatLogs = query({
 export const getModelSettings = query({
     args: {},
     handler: async (ctx) => {
+        if (!await isAdmin(ctx)) throw new Error("Forbidden: Admin access required");
         const settings = await ctx.db
             .query("systemSettings")
             .filter(q => q.or(
@@ -130,6 +147,8 @@ export const getModelSettings = query({
 export const updateModelWeight = mutation({
     args: { id: v.string(), weight: v.number() },
     handler: async (ctx, args) => {
+        if (!await isAdmin(ctx)) throw new Error("Forbidden: Admin access required");
+        
         const settings = await ctx.db
             .query("systemSettings")
             .withIndex("by_key", q => q.eq("key", "model_weights"))

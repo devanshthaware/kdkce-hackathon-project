@@ -2,60 +2,41 @@
  * Configuration for AegisAuth SDK initialization
  */
 export interface AegisConfig {
-  /** API key for authentication with Aegis backend */
   apiKey: string;
-  /** Backend endpoint for risk evaluation */
-  endpoint: string;
-  /** Enable continuous session monitoring */
-  autoMonitor?: boolean;
-  /** Interval in milliseconds for session monitoring */
-  monitorInterval?: number;
-  /** Enable debug logging */
+  baseUrl: string;
+  appId: string;
   debug?: boolean;
-  /** Timeout for API calls in milliseconds */
   timeout?: number;
-  /** Number of retries for failed requests */
   retries?: number;
 }
 
 /**
- * Device fingerprint payload
+ * Common signal payload for fingerprinting
  */
-export interface FingerprintPayload {
+export interface SignalPayload {
   userAgent: string;
   platform: string;
   screenResolution: string;
   timezone: string;
-  hardwareConcurrency: number;
   language: string;
-  cookieEnabled: boolean;
-  doNotTrack: string | null;
   timestamp: number;
 }
 
 /**
- * Login payload for protective authentication
+ * Authentication payloads
  */
 export interface LoginPayload {
-  userId: string;
   email: string;
+  password?: string;
   metadata?: Record<string, any>;
-  simulateFlags?: {
-    newDevice?: boolean;
-    countryChange?: boolean;
-    vpn?: boolean;
-    apiBurst?: boolean;
-    privilegeEscalation?: boolean;
-  };
+}
+
+export interface SignupPayload extends LoginPayload {
+  name?: string;
 }
 
 /**
- * Risk level enumeration
- */
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-
-/**
- * Canonical Decision interface
+ * Canonical Decisions
  */
 export type DecisionType = "ALLOW" | "CHALLENGE" | "RESTRICT" | "BLOCK";
 
@@ -66,41 +47,82 @@ export interface DecisionAction {
 
 export interface Decision {
   type: DecisionType;
-  reason_codes: string[];
   required_actions: DecisionAction[];
+  reason_codes: string[];
 }
 
 /**
- * Risk response from backend
+ * Session Information
  */
-export interface RiskResponse {
-  risk_score: number;
-  risk_level: RiskLevel;
-  components: Record<string, number>;
-  decision?: Decision;
-  timestamp?: number;
+export type SessionState = 
+  | "NEW" 
+  | "EVALUATING" 
+  | "ACTIVE" 
+  | "CHALLENGED" 
+  | "RESTRICTED" 
+  | "BLOCKED" 
+  | "TERMINATED";
+
+export interface Session {
+  id: string;
+  state: SessionState;
   correlationId: string;
+  userId?: string;
+  email?: string;
+  riskScore?: number;
 }
 
 /**
- * Session monitoring payload
+ * SDK Responses
  */
-export interface SessionPayload {
-  apiCalls?: number;
-  privilegeEscalation?: boolean;
-  sensitiveRoute?: boolean;
-  anomalies?: string[];
-}
-
-/**
- * Internal API request payload
- */
-export interface RiskAssessmentPayload extends LoginPayload {
-  fingerprint: FingerprintPayload;
+export interface AegisResponse<T> {
+  data: T;
+  decision?: Decision;
+  sessionId?: string;
   correlationId?: string;
 }
 
+export interface AuthResponse extends AegisResponse<{
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+  };
+  token: string;
+}> {}
+
 /**
- * Monitoring callback function type
+ * Events
  */
-export type MonitoringCallback = (risk: RiskResponse) => void;
+export type AegisEventType = 
+  | "SIGNAL_RECEIVED" 
+  | "RISK_CALCULATED" 
+  | "DECISION_MADE" 
+  | "ACTION_DISPATCHED" 
+  | "ACTION_EXECUTED" 
+  | "STATE_TRANSITIONED"
+  | "MFA_STARTED"
+  | "MFA_VERIFIED";
+
+/**
+ * Errors
+ */
+export type AegisErrorCode = 
+  | "AUTH_ERROR" 
+  | "SESSION_EXPIRED" 
+  | "ACCESS_DENIED" 
+  | "NETWORK_ERROR"
+  | "CONFIG_ERROR"
+  | "MFA_REQUIRED";
+
+export class AegisError extends Error {
+  code: AegisErrorCode;
+  details?: any;
+
+  constructor(message: string, code: AegisErrorCode, details?: any) {
+    super(message);
+    this.name = "AegisError";
+    this.code = code;
+    this.details = details;
+  }
+}

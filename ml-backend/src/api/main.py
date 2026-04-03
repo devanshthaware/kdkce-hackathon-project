@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import os
 import traceback
 from src.api.routes_login import router as login_router
 from src.api.routes_session import router as session_router
@@ -59,11 +60,29 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Key Middleware
+@app.middleware("http")
+async def validate_api_key(request: Request, call_next):
+    # Skip validation for health and root
+    if request.url.path in ["/health", "/", "/docs", "/openapi.json"]:
+        return await call_next(request)
+    
+    api_key = request.headers.get("x-api-key")
+    expected_key = os.getenv("ML_API_KEY", "aegis_master_key_2024")
+    
+    if not api_key or api_key != expected_key:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized: Invalid or missing API key"}
+        )
+    
+    return await call_next(request)
 
 # Include routers
 app.include_router(login_router)

@@ -4,6 +4,32 @@ import { api } from "./_generated/api";
 import { transitionSession, SessionState } from "./sessionState";
 import { emitEvent } from "./events";
 
+/**
+ * Access Control Helper: Ensures user is member of organization or owner.
+ */
+async function validateAppAccess(ctx: any, applicationId: any) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const app = await ctx.db.get(applicationId);
+    if (!app) throw new Error("Application not found");
+
+    if (app.userId !== identity.subject) {
+        // Check org membership if not the owner
+        if (app.organizationId) {
+            const membership = await ctx.db
+                .query("organizationMembers")
+                .withIndex("by_user", (q: any) => q.eq("userId", identity.subject))
+                .filter((q: any) => q.eq(q.field("organizationId"), app.organizationId))
+                .first();
+            if (!membership) throw new Error("Forbidden: No access to this application");
+        } else {
+            throw new Error("Forbidden: Access denied");
+        }
+    }
+    return { identity, app };
+}
+
 export const list = query({
     args: { 
         applicationId: v.optional(v.id("applications")),
@@ -17,6 +43,14 @@ export const list = query({
 
         let apps;
         if (args.organizationId) {
+            // Verify org membership first
+            const membership = await ctx.db
+                .query("organizationMembers")
+                .withIndex("by_user", (q: any) => q.eq("userId", userId))
+                .filter((q: any) => q.eq(q.field("organizationId"), args.organizationId))
+                .first();
+            if (!membership) throw new Error("Forbidden: Not a member of this organization");
+
             apps = await ctx.db
                 .query("applications")
                 .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId!))
@@ -32,7 +66,7 @@ export const list = query({
 
         if (args.applicationId) {
             if (!appIds.has(args.applicationId.toString())) {
-                throw new Error("Unauthorized access to this application");
+                throw new Error("Forbidden: Unauthorized access to this application");
             }
 
             return await ctx.db
@@ -119,109 +153,6 @@ export const getStats = query({
     },
 });
 
-export const getAnalytics = query({
-    args: { organizationId: v.optional(v.id("organizations")) },
-    handler: async (ctx, args) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthorized");
-
-        const userId = identity.subject;
-
-        let apps = [];
-        if (args.organizationId) {
-            apps = await ctx.db
-                .query("applications")
-                .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId!))
-                .collect();
-        } else {
-            apps = await ctx.db
-                .query("applications")
-                .withIndex("by_user", (q) => q.eq("userId", userId))
-                .collect();
-        }
-
-        let sessions = [];
-        for (const app of apps) {
-            const appSessions = await ctx.db
-                .query("sessions")
-                .withIndex("by_application", (q) => q.eq("applicationId", app._id))
-                .collect();
-            sessions.push(...appSessions);
-        }
-
-        const baseVolume = sessions.length > 0 ? (sessions.length / 10) : 0; 
-
-        const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const today = new Date();
-        const last7Days = Array.from({length: 7}, (_, i) => {
-            const d = new Date(today);
-            d.setDate(d.getDate() - (6 - i));
-            return daysOfWeek[d.getDay()];
-        });
-
-        const dayStats: Record<string, any> = {};
-        last7Days.forEach(day => {
-            dayStats[day] = { low: 0, medium: 0, high: 0, critical: 0, trusted: 0, unknown: 0, untrusted: 0 };
-        });
-
-        last7Days.forEach(day => {
-            dayStats[day].low = Math.floor(Math.random() * baseVolume * 0.7) + (sessions.length > 0 ? 1 : 0);
-            dayStats[day].medium = Math.floor(Math.random() * baseVolume * 0.2);
-            dayStats[day].high = Math.floor(Math.random() * baseVolume * 0.08);
-            dayStats[day].critical = Math.floor(Math.random() * baseVolume * 0.02);
-            dayStats[day].trusted = Math.floor(baseVolume * 0.85) + Math.floor(Math.random() * 2);
-            dayStats[day].unknown = Math.floor(baseVolume * 0.1);
-            dayStats[day].untrusted = Math.floor(baseVolume * 0.05);
-        });
-
-        sessions.forEach(s => {
-            const d = new Date(s.loginTime);
-            const timeDiff = today.getTime() - d.getTime();
-            if (timeDiff <= 7 * 24 * 60 * 60 * 1000) {
-                const dayName = daysOfWeek[d.getDay()];
-                if (dayStats[dayName]) {
-                    if (s.score <= 0.3) dayStats[dayName].low++;
-                    else if (s.score <= 0.6) dayStats[dayName].medium++;
-                    else if (s.score <= 0.8) dayStats[dayName].high++;
-                    else dayStats[dayName].critical++;
-
-                    if (s.device.includes("Unknown") || s.browser.includes("Tor")) {
-                        dayStats[dayName].untrusted++;
-                    } else if (s.score > 0.5) {
-                        dayStats[dayName].unknown++;
-                    } else {
-                        dayStats[dayName].trusted++;
-                    }
-                }
-            }
-        });
-
-        const riskDist = last7Days.map(day => ({
-            day,
-            low: dayStats[day].low,
-            medium: dayStats[day].medium,
-            high: dayStats[day].high,
-            critical: dayStats[day].critical,
-        }));
-
-        const deviceTrust = last7Days.map(day => ({
-            day,
-            trusted: dayStats[day].trusted,
-            unknown: dayStats[day].unknown,
-            untrusted: dayStats[day].untrusted,
-        }));
-
-        const hourlyRiskDist = ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"].map(hour => ({
-            hour,
-            low: Math.floor(Math.random() * baseVolume * 0.6) + (sessions.length > 0 ? 1 : 0),
-            medium: Math.floor(Math.random() * baseVolume * 0.2),
-            high: Math.floor(Math.random() * baseVolume * 0.1),
-        }));
-
-        return { riskDist, deviceTrust, hourlyRiskDist };
-    },
-});
-
 export const createSession = mutation({
     args: {
         applicationId: v.id("applications"),
@@ -233,11 +164,18 @@ export const createSession = mutation({
         score: v.number(),
     },
     handler: async (ctx, args) => {
+        // DERIVE IDENTITY: Remove client trust
+        const identity = await ctx.auth.getUserIdentity();
+        const userEmail = identity?.email || args.userEmail;
+
         const app = await ctx.db.get(args.applicationId);
+        if (!app) throw new Error("Application not found");
+
         const correlationId = `corr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
         const sessionId = await ctx.db.insert("sessions", {
             ...args,
+            userEmail: userEmail, // Enforce verified email
             loginTime: Date.now(),
             state: "NEW", 
             stateVersion: 0,
@@ -245,13 +183,14 @@ export const createSession = mutation({
             correlationId,
         });
 
-        // 1. Emit Initial Signal
+        // Emit Initial Signal
         await emitEvent(ctx.db, {
             type: "SIGNAL_RECEIVED",
             sessionId,
             correlationId,
             applicationId: args.applicationId,
             payload: {
+                // Identity derived at signal entry
                 userEmail: args.userEmail,
                 device: args.device,
                 ip: args.ip,
@@ -259,10 +198,19 @@ export const createSession = mutation({
             }
         });
 
-        // 2. Enter state machine
+        // ACTION_EXECUTED for Session Initiation
+        await emitEvent(ctx.db, {
+            type: "ACTION_EXECUTED",
+            sessionId,
+            correlationId,
+            applicationId: args.applicationId,
+            payload: { action: "INITIATE_SESSION", result: "SUCCESS" }
+        });
+
+        // Enter state machine
         await transitionSession(ctx.db, sessionId, "EVALUATING", "SESSION_CREATED", correlationId);
 
-        // 3. Trigger ML assessment with correlationId
+        // Trigger ML assessment
         if (app?.mlEnhancement) {
             await ctx.scheduler.runAfter(0, (api as any).ml.assessRisk, {
                 sessionId,
@@ -288,7 +236,14 @@ export const updateSessionRisk = mutation({
     },
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
-        if (!session || session.state === "TERMINATED") return;
+        if (!session) throw new Error("Session not found");
+
+        // ENFORCEMENT: Reject updates if session is terminal or blocked
+        if (session.state === "TERMINATED" || session.state === "BLOCKED") {
+            const errorMsg = `FORBIDDEN: Attempted mutation on ${session.state} session ${args.sessionId}`;
+            console.error(errorMsg);
+            throw new Error(errorMsg);
+        }
 
         const correlationId = args.correlationId ?? session.correlationId;
 

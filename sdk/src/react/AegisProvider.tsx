@@ -1,47 +1,56 @@
-import React, { createContext, useContext } from "react";
-import { AegisAuth } from "../client";
-import { AegisConfig } from "../types";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { initAegisAuth } from "../core/config";
+import { AegisConfig, Session } from "../types";
+import { getCurrentSession, onSessionChange } from "../session/session";
 
-/**
- * Context for AegisAuth client
- */
-const AegisContext = createContext<AegisAuth | null>(null);
+interface AegisContextType {
+  session: Session | null;
+  isLoading: boolean;
+}
+
+const AegisContext = createContext<AegisContextType | undefined>(undefined);
 
 interface AegisProviderProps {
   config: AegisConfig;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 /**
- * Provider component for AegisAuth SDK
- * Wrap your app with this to enable hooks support
+ * Global provider for AegisAuth SDK.
+ * Initializes the configuration and provides session context.
  */
-export const AegisProvider = ({ config, children }: AegisProviderProps) => {
-  // Create client instance (could be optimized to use useMemo in real app)
-  const client = React.useMemo(() => new AegisAuth(config), [config.apiKey, config.endpoint]);
+export const AegisProvider: React.FC<AegisProviderProps> = ({ config, children }) => {
+  const [session, setSession] = useState<Session | null>(getCurrentSession());
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Cleanup on unmount
-  React.useEffect(() => {
-    return () => {
-      client.destroy();
-    };
-  }, [client]);
+  useEffect(() => {
+    // 1. Initialize Global Config
+    try {
+      initAegisAuth(config);
+    } catch (e) {
+      console.error("[Aegis SDK] Initialization failed:", e);
+    }
 
-  return <AegisContext.Provider value={client}>{children}</AegisContext.Provider>;
+    // 2. Sync Session States
+    const unsubscribe = onSessionChange((s) => {
+      setSession(s ? { ...s } : null);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [config.apiKey, config.appId]);
+
+  return (
+    <AegisContext.Provider value={{ session, isLoading }}>
+      {children}
+    </AegisContext.Provider>
+  );
 };
 
-/**
- * Hook to access AegisAuth client
- */
-export const useAegisClient = (): AegisAuth => {
+export const useAegisSession = () => {
   const context = useContext(AegisContext);
-  if (!context) {
-    throw new Error(
-      "useAegisClient must be used inside AegisProvider. " +
-      "Wrap your component tree with <AegisProvider>"
-    );
+  if (context === undefined) {
+    throw new Error("useAegisSession must be used within an AegisProvider");
   }
   return context;
 };
-
-export { AegisContext };

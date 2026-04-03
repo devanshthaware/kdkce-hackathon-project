@@ -1,15 +1,6 @@
+export * from "../index";
+
 /**
- * AegisAuth Node.js Integration
- * Server-side adapter for Express and other Node.js frameworks
+ * Node-specific enhancements or polyfills can be added here.
+ * The core AegisAuth client is isomorphic and works in Node environment.
  */
-
-export { AegisAuthNode } from "./client";
-
-export {
-  createAegisMiddleware,
-  aegisMiddleware,
-  requireLowRisk,
-  aegisErrorHandler,
-} from "./middleware";
-
-export type { AegisRequest } from "./middleware";

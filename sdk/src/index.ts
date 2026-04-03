@@ -1,31 +1,35 @@
-/**
- * @aegis/auth-sdk - Production-grade Adaptive Authentication SDK
- * Provides device fingerprinting, risk assessment, and continuous monitoring
- */
+// Public API Export (Step 18)
 
-export { AegisAuth } from "./client";
+// 1. Configuration and Initialization (Step 1)
+export { initAegisAuth, getConfig } from "./core/config";
 
-export type {
-  AegisConfig,
-  FingerprintPayload,
-  LoginPayload,
-  RiskResponse,
-  RiskLevel,
-  SessionPayload,
-  RiskAssessmentPayload,
-  MonitoringCallback,
-} from "./types";
+// 2. Authentication and Decisions (Step 4 & 5)
+export { signup, login, logout, getCurrentUser } from "./auth/auth";
+export { handleDecision } from "./decision/decision";
 
-export {
-  AegisError,
-  NetworkError,
-  InvalidResponseError,
-  ConfigError,
-  TimeoutError,
-} from "./errors";
+// 3. Multi-Factor Authentication (Step 6)
+export { initiateMFA, verifyMFA, completeMFA } from "./mfa/mfa";
 
-export { collectFingerprint, hashFingerprint, compareFingerprints } from "./fingerprint";
+// 4. Session State and Route Protection (Step 7 & 11)
+export { 
+  getCurrentSession, 
+  protectRoute, 
+  onSessionChange, 
+  updateSessionState 
+} from "./session/session";
 
-export { startSessionMonitoring, stopSessionMonitoring, isMonitoring } from "./session";
+// 5. Signal Collection and continuous Monitoring (Step 8 & 9)
+export { collectSignal, startMonitoring, stopMonitoring } from "./signals/signals";
 
-export { delay, withRetry, withTimeout, validateConfig } from "./utils";
+// 6. Action Execution (Step 10)
+export { executeAction, onAction } from "./actions/actions";
+
+// 7. Standard Observability (Step 13)
+export { onSessionChange as onSessionUpdate } from "./session/session";
+export { onAction as onPolicyAction } from "./actions/actions";
+
+// 8. Types and Errors (Step 15)
+export * from "./types";
+
+// 9. React Integration (Step 12)
+export * from "./hooks/useAegisAuth";

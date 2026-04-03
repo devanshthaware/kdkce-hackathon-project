@@ -30,7 +30,10 @@ export const assessRisk = action({
         try {
             const response = await fetch(`${mlUrl}/predict/risk`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "x-api-key": process.env.ML_BACKEND_API_KEY || "aegis_master_key_2024"
+                 },
                 body: JSON.stringify(requestBody),
             });
 

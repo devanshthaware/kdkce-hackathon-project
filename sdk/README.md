@@ -1,339 +1,321 @@
-# AegisAuth SDK
+# 🛡️ AegisAuth SDK
 
-Production-grade TypeScript SDK for Adaptive Authentication with device fingerprinting, risk assessment, and continuous session monitoring.
+**AegisAuth** is an adaptive authentication platform that combines modern authentication (like Clerk/Auth0) with **real-time risk-based security and continuous session monitoring**.
 
-## Features
+This SDK allows developers to integrate:
 
-✨ **Lightweight & Framework-Agnostic** - Zero dependencies except axios, works with any framework  
-🔐 **Device Fingerprinting** - Privacy-safe browser signal collection  
-⚡ **Risk Assessment** - Real-time adaptive authentication risk scoring  
-👁️ **Continuous Monitoring** - Track session risk throughout user lifecycle  
-🛡️ **Error Resilience** - Graceful fallback strategy for backend outages  
-📦 **TypeScript-First** - Full type safety and IDE support  
-⚙️ **Framework Integration** - React hooks included with optional installation  
-
-## Installation
-
-### Core SDK
-```bash
-npm install @aegis/auth-sdk
-```
-
-### With React Support (Optional)
-```bash
-npm install @aegis/auth-sdk react@18
-```
-
-## Quick Start
-
-### Core SDK Example (5 minutes)
-
-```typescript
-import { AegisAuth, LoginPayload } from "@aegis/auth-sdk";
-
-// Initialize client
-const client = new AegisAuth({
-  apiKey: "your-api-key",
-  endpoint: "https://api.aegisauth.com",
-});
-
-// Protect login
-const risk = await client.protectLogin({
-  userId: "user-123",
-  email: "user@example.com",
-});
-
-// Handle based on risk
-if (client.isCritical(risk)) {
-  // Block login, require MFA
-} else if (client.isHighRisk(risk)) {
-  // Step-up authentication
-} else {
-  // Proceed normally
-}
-```
-
-### React Integration
-
-```typescript
-import { AegisProvider, useAegisAuth } from "@aegis/auth-sdk/react";
-
-function App() {
-  return (
-    <AegisProvider config={{
-      apiKey: "your-api-key",
-      endpoint: "https://api.aegisauth.com",
-    }}>
-      <LoginPage />
-    </AegisProvider>
-  );
-}
-
-function LoginPage() {
-  const { protectLogin, risk, loading } = useAegisAuth();
-
-  const handleLogin = async () => {
-    const assessment = await protectLogin({
-      userId: "user-123",
-      email: "user@example.com",
-    });
-
-    if (assessment.risk_level === "CRITICAL") {
-      // Show MFA prompt
-    }
-  };
-
-  return <button onClick={handleLogin}>Login</button>;
-}
-```
-
-## Continuous Monitoring
-
-Monitor session risk throughout the user's authentication lifecycle:
-
-```typescript
-const client = new AegisAuth({
-  apiKey: "your-api-key",
-  endpoint: "https://api.aegisauth.com",
-});
-
-// Start automatic monitoring
-client.startMonitoring((risk) => {
-  if (client.isCritical(risk)) {
-    // Terminate session immediately
-    logout();
-  } else if (client.isHighRisk(risk)) {
-    // Force re-authentication
-    redirectToMFA();
-  }
-});
-
-// Stop when session ends
-client.stopMonitoring();
-```
-
-## Risk Handling Patterns
-
-### Step-Up Authentication
-
-```typescript
-const risk = await client.protectLogin(payload);
-
-switch (risk.risk_level) {
-  case "LOW":
-    // Normal authentication
-    break;
-  case "MEDIUM":
-    // Request additional verification
-    await verifyEmail(user.email);
-    break;
-  case "HIGH":
-    // Require MFA
-    await requireMFA();
-    break;
-  case "CRITICAL":
-    // Block + notify security team
-    blockLogin();
-    notifySecurityTeam(risk);
-    break;
-}
-```
-
-### Device Change Detection
-
-```typescript
-if (client.hasDeviceChanged()) {
-  // Require re-verification
-  await resendVerificationEmail();
-}
-```
-
-## API Reference
-
-### AegisAuth Class
-
-#### Constructor
-
-```typescript
-constructor(config: AegisConfig)
-```
-
-**Config Options:**
-- `apiKey` (string, required) - API key for authentication
-- `endpoint` (string, required) - Backend endpoint for risk evaluation
-- `autoMonitor` (boolean, optional) - Auto-start monitoring after login (default: false)
-- `monitorInterval` (number, optional) - Monitoring check interval in ms (default: 5000)
-- `timeout` (number, optional) - API request timeout in ms (default: 10000)
-- `retries` (number, optional) - Retry attempts for failed requests (default: 1)
-- `debug` (boolean, optional) - Enable console logging (default: false)
-
-#### Methods
-
-##### `protectLogin(payload: LoginPayload): Promise<RiskResponse>`
-
-Assess risk for a login attempt and collect device fingerprint.
-
-```typescript
-const risk = await client.protectLogin({
-  userId: "user-123",
-  email: "user@example.com",
-  metadata: { ipAddress: "192.168.1.1" },
-});
-```
-
-##### `checkRisk(payload?: Partial<LoginPayload>): Promise<RiskResponse>`
-
-Re-evaluate risk without full login flow, useful for mid-session checks.
-
-```typescript
-const risk = await client.checkRisk({ userId: "user-123" });
-```
-
-##### `startMonitoring(handler: (risk: RiskResponse) => void): string`
-
-Start continuous session monitoring at configured interval.
-
-```typescript
-const monitoringId = client.startMonitoring((risk) => {
-  console.log(`Risk update: ${risk.risk_level}`);
-});
-```
-
-##### `stopMonitoring(): void`
-
-Stop active monitoring session.
-
-```typescript
-client.stopMonitoring();
-```
-
-##### `isHighRisk(risk: RiskResponse): boolean`
-
-Check if risk is HIGH or CRITICAL level.
-
-```typescript
-if (client.isHighRisk(risk)) {
-  // Handle high risk
-}
-```
-
-##### `isCritical(risk: RiskResponse): boolean`
-
-Check if risk is CRITICAL level.
-
-```typescript
-if (client.isCritical(risk)) {
-  // Block access
-}
-```
-
-### Types
-
-#### RiskResponse
-
-```typescript
-interface RiskResponse {
-  risk_score: number;        // 0-1 score
-  risk_level: RiskLevel;     // "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
-  components: Record<string, number>;  // Individual risk components
-  timestamp?: number;        // Assessment timestamp
-}
-```
-
-#### LoginPayload
-
-```typescript
-interface LoginPayload {
-  userId: string;
-  email: string;
-  metadata?: Record<string, any>;
-  simulateFlags?: {
-    newDevice?: boolean;
-    countryChange?: boolean;
-    vpn?: boolean;
-    apiBurst?: boolean;
-    privilegeEscalation?: boolean;
-  };
-}
-```
-
-#### FingerprintPayload
-
-```typescript
-interface FingerprintPayload {
-  userAgent: string;
-  platform: string;
-  screenResolution: string;
-  timezone: string;
-  hardwareConcurrency: number;
-  language: string;
-  cookieEnabled: boolean;
-  doNotTrack: string | null;
-  timestamp: number;
-}
-```
-
-## Error Handling
-
-The SDK throws typed errors for different failure scenarios:
-
-```typescript
-import { AegisAuth, NetworkError, TimeoutError, AegisError } from "@aegis/auth-sdk";
-
-try {
-  await client.protectLogin(payload);
-} catch (error) {
-  if (error instanceof NetworkError) {
-    console.error(`Network issue: ${error.statusCode}`);
-  } else if (error instanceof TimeoutError) {
-    console.error(`Request timed out: ${error.duration}ms`);
-  } else if (error instanceof AegisError) {
-    console.error(`SDK error: ${error.message}`);
-  }
-}
-```
-
-## Privacy & Security
-
-- **No PII Collection** - Device fingerprinting uses only non-identifying signals
-- **No Cookie Storage** - Fingerprints are computed, not stored
-- **Timeout Protection** - Default 10s timeout prevents hanging requests
-- **Retry Logic** - Automatic exponential backoff for transient failures
-- **Graceful Degradation** - Safe fallback to LOW risk if backend unreachable
-
-## Performance
-
-- **Lightweight** - ~15KB minified & gzipped
-- **No External Dependencies** - Only axios for network requests
-- **Async/Await** - Non-blocking operations
-- **Lazy Evaluation** - Fingerprints computed on-demand
-
-## Browser Compatibility
-
-- Chrome/Edge: ✅ 90+
-- Firefox: ✅ 88+
-- Safari: ✅ 14+
-- Mobile browsers: ✅ Modern versions
-
-## Node.js Support
-
-Works in Node.js environments via @aegis/auth-node package.
-
-## Examples
-
-See [example/demo.ts](./example/demo.ts) for comprehensive usage patterns.
-
-## License
-
-MIT
-
-## Support
-
-For issues, feature requests, or questions:
-- GitHub Issues: [aegis/auth-sdk](https://github.com/aegis/auth-sdk)
-- Documentation: [docs.aegisauth.com](https://docs.aegisauth.com)
-- Email: sdk-support@aegisauth.com
+* 🔐 Authentication (login, signup, session)
+* 🧠 Adaptive authentication (risk + decision engine)
+* ⚡ Real-time session monitoring
+* 🔑 API-key–based multi-tenant integration
+* 🔒 Decision-driven MFA (2FA)
+* 🧾 Event-driven security pipeline
 
 ---
 
-**Built with ❤️ by AegisAuth Team**
+# 🚀 Core Concept
+
+AegisAuth operates on a strict pipeline:
+
+```
+Signal → Risk → Decision → Action → State → Event
+```
+
+The SDK:
+
+* ✔ Sends signals
+* ✔ Receives decisions
+* ✔ Executes actions
+
+The SDK **does NOT**:
+
+* ❌ Calculate risk
+* ❌ Interpret risk
+* ❌ Make security decisions
+
+---
+
+# 📦 Installation
+
+```bash
+npm install aegis-auth
+```
+
+---
+
+# ⚙️ Initialization
+
+```ts
+import { initAegisAuth } from "aegis-auth";
+
+const aegis = initAegisAuth({
+  apiKey: "your_project_api_key",
+  baseUrl: "https://api.aegisauth.com",
+  appId: "your_app_id",
+});
+```
+
+> ⚠️ The API key defines your project boundary.
+> All requests are scoped to this key.
+
+---
+
+# 🔐 Authentication
+
+## Signup
+
+```ts
+await aegis.signup(email, password);
+```
+
+## Login
+
+```ts
+const result = await aegis.login(email, password);
+```
+
+Login is **adaptive** — it may trigger MFA depending on risk.
+
+---
+
+# 🔑 MFA (2FA)
+
+MFA is **decision-driven**, not manually triggered.
+
+## Flow
+
+```
+Login → Decision: CHALLENGE → MFA_REQUIRED → Verify → ACTIVE
+```
+
+## Example
+
+```ts
+if (result.decision.type === "CHALLENGE") {
+  await aegis.initiateMFA();
+
+  await aegis.verifyMFA(code);
+}
+```
+
+---
+
+# 👤 Session
+
+```ts
+const session = await aegis.getSession();
+```
+
+Session includes:
+
+* session_id
+* state (ACTIVE, CHALLENGED, BLOCKED, etc.)
+* correlation_id
+
+---
+
+# 🧠 Decision Handling
+
+The SDK automatically handles decisions from backend:
+
+| Decision  | Behavior          |
+| --------- | ----------------- |
+| ALLOW     | Continue session  |
+| CHALLENGE | Trigger MFA       |
+| RESTRICT  | Limit access      |
+| BLOCK     | Terminate session |
+
+You can also listen manually:
+
+```ts
+aegis.onDecision((decision) => {
+  console.log("Decision:", decision.type);
+});
+```
+
+---
+
+# 📡 Signals (Core Feature)
+
+Send user activity signals to enable adaptive authentication:
+
+```ts
+aegis.collectSignal("page_view", {
+  path: "/dashboard",
+});
+```
+
+Examples:
+
+* page_view
+* api_call
+* user_action
+* location_change
+
+---
+
+# ⚡ Continuous Monitoring
+
+```ts
+aegis.startMonitoring();
+```
+
+This enables:
+
+* real-time risk evaluation
+* session re-evaluation
+* automatic enforcement
+
+---
+
+# 🔒 Route Protection
+
+```ts
+aegis.protectRoute();
+```
+
+Enforces session state:
+
+| State      | Behavior       |
+| ---------- | -------------- |
+| ACTIVE     | allow          |
+| CHALLENGED | require MFA    |
+| RESTRICTED | limited access |
+| BLOCKED    | deny           |
+| TERMINATED | logout         |
+
+---
+
+# ⚙️ Actions
+
+SDK executes backend actions automatically:
+
+* SESSION_TERMINATE → logout
+* MFA_REQUIRED → trigger MFA
+* ACCESS_RESTRICT → limit UI
+
+---
+
+# ⚛️ React Integration
+
+## Hooks
+
+```ts
+const { user, session } = useAegisAuth();
+```
+
+```ts
+const mfa = useMFA();
+```
+
+### useMFA
+
+```ts
+mfa.startMFA();
+mfa.verifyCode(code);
+```
+
+---
+
+# 🧾 Event-Driven Architecture
+
+Every request is traceable via:
+
+* correlation_id
+* session_id
+
+You can debug full lifecycle:
+
+```
+Signal → Risk → Decision → Action → State
+```
+
+---
+
+# 🔐 Security Model
+
+AegisAuth follows **zero-trust architecture**:
+
+* API key defines project boundary
+* Backend enforces all rules
+* SDK is not trusted
+* Session state controls access
+* All events are immutable
+
+---
+
+# ⚠️ Important Rules
+
+* Do NOT interpret risk score in client
+* Do NOT bypass SDK decision handling
+* Do NOT trigger MFA manually
+* Always rely on backend decisions
+
+---
+
+# 🧪 Example
+
+```ts
+const aegis = initAegisAuth({ apiKey });
+
+await aegis.login(email, password);
+
+aegis.startMonitoring();
+
+aegis.collectSignal("user_action", {
+  action: "clicked_button",
+});
+```
+
+---
+
+# 📊 Features
+
+* ✔ Adaptive Authentication
+* ✔ Continuous Monitoring
+* ✔ Decision Engine Integration
+* ✔ MFA (2FA)
+* ✔ Session State Enforcement
+* ✔ Event-driven architecture
+* ✔ Multi-tenant API key model
+
+---
+
+# 🧭 Why AegisAuth?
+
+Traditional auth systems:
+
+```
+Login → Access → Done
+```
+
+AegisAuth:
+
+```
+Login → Continuous Monitoring → Real-Time Decisions → Enforcement
+```
+
+---
+
+# 📌 Roadmap
+
+* Policy engine (custom rules)
+* Advanced analytics dashboard
+* Rate limiting & anomaly detection
+* Multi-factor options (biometric, WebAuthn)
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome. Please follow:
+
+* clean architecture principles
+* no client-side decision logic
+* maintain SDK thinness
+
+---
+
+# 📄 License
+
+MIT License

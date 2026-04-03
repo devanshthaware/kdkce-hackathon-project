@@ -12,9 +12,6 @@ export type SessionState =
     | "BLOCKED" 
     | "TERMINATED";
 
-/**
- * Valid transitions for the session state machine.
- */
 const VALID_TRANSITIONS: Record<SessionState, SessionState[]> = {
     NEW: ["EVALUATING"],
     EVALUATING: ["ACTIVE", "CHALLENGED", "RESTRICTED", "BLOCKED"],
@@ -27,7 +24,7 @@ const VALID_TRANSITIONS: Record<SessionState, SessionState[]> = {
 
 /**
  * Centralized manager for session state transitions.
- * Enforces validation and increments state version.
+ * Enforces validation, increments state version, and logs action execution.
  */
 export async function transitionSession(
     db: GenericDatabaseWriter<any>,
@@ -41,28 +38,55 @@ export async function transitionSession(
 
     const currentState = session.state as SessionState;
 
-    // 1. Terminal State Check
+    // 1. Terminal State Enforcement (Backend Protected Layer)
     if (currentState === "TERMINATED") {
-        console.error(`Violation: Attempted to transition from terminal state ${currentState} for session ${sessionId}`);
-        throw new Error(`Cannot transition from terminal state: ${currentState}`);
+        const errorMsg = `FORBIDDEN: Attempted mutation from terminal state ${currentState} for session ${sessionId}`;
+        console.error(errorMsg);
+        
+        await emitEvent(db, {
+            type: "ACTION_FAILED",
+            sessionId,
+            correlationId,
+            applicationId: session.applicationId,
+            payload: { action: "STATE_TRANSITION", reason: "TERMINAL_STATE_VIOLATION", from: currentState, to: nextState }
+        });
+        
+        throw new Error(errorMsg);
     }
 
-    // 2. Already in state
     if (currentState === nextState) return;
 
-    // 3. Validation
+    // 2. State Machine Logic Validation
     const allowed = VALID_TRANSITIONS[currentState] || [];
     if (!allowed.includes(nextState)) {
         const errorMsg = `Invalid transition: ${currentState} -> ${nextState} for session ${sessionId}`;
         console.error(`[Aegis State Machine Violation] ${errorMsg}`);
+        
+        await emitEvent(db, {
+            type: "ACTION_FAILED",
+            sessionId,
+            correlationId,
+            applicationId: session.applicationId,
+            payload: { action: "STATE_TRANSITION", reason: "INVALID_TRANSITION_PATH", from: currentState, to: nextState }
+        });
+
         throw new Error(errorMsg);
     }
 
-    // 4. Persistence
+    // 3. Persistence
     await db.patch(sessionId, {
         state: nextState,
         stateVersion: (session.stateVersion ?? 0) + 1,
         updatedAt: Date.now(),
+    });
+
+    // 4. ACTION_EXECUTED Event (Deterministic Outcome)
+    await emitEvent(db, {
+        type: "ACTION_EXECUTED",
+        sessionId,
+        correlationId,
+        applicationId: session.applicationId,
+        payload: { action: "STATE_TRANSITION", result: "SUCCESS", from: currentState, to: nextState }
     });
 
     // 5. Emit Traceable Event

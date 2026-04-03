@@ -9,10 +9,12 @@ export type AegisEventType =
     | "DECISION_MADE" 
     | "ACTION_DISPATCHED" 
     | "ACTION_EXECUTED" 
+    | "ACTION_FAILED"
     | "STATE_TRANSITIONED";
 
 /**
  * Structured event for the AegisAuth pipeline.
+ * Enforcement: Append-only, Idempotent (Correlation + Type)
  */
 export async function emitEvent(
     db: GenericDatabaseWriter<any>,
@@ -24,20 +26,19 @@ export async function emitEvent(
         payload: any;
     }
 ): Promise<Id<"events">> {
-    // Enforce no multiple decisions for same correlation
-    if (params.type === "DECISION_MADE") {
-        const existing = await db
-            .query("events")
-            .withIndex("by_correlation", (q) => q.eq("correlationId", params.correlationId))
-            .filter((q) => q.eq(q.field("type"), "DECISION_MADE"))
-            .first();
-        
-        if (existing) {
-            console.warn(`[Aegis Event System] Duplicate decision attempted for correlation ${params.correlationId}`);
-            return existing._id;
-        }
+    // 1. Idempotency Protection: (correlation_id + event_type) uniqueness
+    const existing = await db
+        .query("events")
+        .withIndex("by_correlation", (q) => q.eq("correlationId", params.correlationId))
+        .filter((q) => q.eq(q.field("type"), params.type))
+        .first();
+    
+    if (existing) {
+        console.warn(`[Aegis Event System] Duplicate event suppressed: ${params.type} for correlation ${params.correlationId}`);
+        return existing._id;
     }
 
+    // 2. Append-only: Handled by Convex (no update/delete methods exposed for events table in public mutations)
     const eventId = await db.insert("events", {
         ...params,
         timestamp: Date.now(),
@@ -53,6 +54,10 @@ export const getLifecycle = query({
     correlationId: v.optional(v.string()) 
   },
   handler: async (ctx, args) => {
+    // Basic Auth Check: Ensure user is logged in
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
     if (args.correlationId) {
       return await ctx.db
         .query("events")
