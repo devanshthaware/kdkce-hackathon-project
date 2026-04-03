@@ -4,7 +4,9 @@ import { mutation, query } from "./_generated/server";
 export const getUserOrganizations = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
+    // The UI may render before Clerk auth is ready (or when the user is signed out).
+    // Returning an empty list prevents the whole app from crashing with an Unauthorised error.
+    if (!identity) return [];
 
     const userId = identity.subject;
 

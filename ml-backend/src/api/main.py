@@ -6,7 +6,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import traceback
-
 from src.api.routes_login import router as login_router
 from src.api.routes_session import router as session_router
 from src.api.routes_device import router as device_router

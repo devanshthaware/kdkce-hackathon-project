@@ -5,10 +5,47 @@ from twilio.rest import Client
 import google.generativeai as genai
 from dotenv import load_dotenv
 from convex import ConvexClient
+from src.utils.logger import logger
+from urllib.parse import urlparse
 
 load_dotenv()
 CONVEX_URL = os.getenv("NEXT_PUBLIC_CONVEX_URL", "mock_url")
-convex_client = ConvexClient(CONVEX_URL)
+convex_client = None
+
+
+def _is_mock_convex_url(url: str) -> bool:
+    # In this repo we treat any value containing "mock" as "no Convex available".
+    return (not url) or ("mock" in url.lower())
+
+
+def get_convex_client() -> ConvexClient | None:
+    """
+    Lazily create the Convex client so ML backend can start even when
+    NEXT_PUBLIC_CONVEX_URL isn't a valid Convex HTTP(S) origin.
+    """
+    global convex_client
+
+    if convex_client is not None:
+        return convex_client
+
+    if _is_mock_convex_url(CONVEX_URL):
+        return None
+
+    parsed = urlparse(CONVEX_URL)
+    # Convex expects an absolute URL like: https://<name>-<id>.convex.cloud
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        logger.warning(
+            "Invalid NEXT_PUBLIC_CONVEX_URL for Convex (expected absolute http(s) URL). Got: %r. Running without Convex.",
+            CONVEX_URL,
+        )
+        return None
+
+    try:
+        convex_client = ConvexClient(CONVEX_URL)
+        return convex_client
+    except Exception:
+        logger.exception("Failed to initialize ConvexClient; running without Convex.")
+        return None
 
 # Setup Router
 router = APIRouter(prefix="/api/v1/support", tags=["Support Center"])
@@ -79,9 +116,13 @@ async def trigger_ai_chat(request: ChatRequest):
     """
     try:
         user_context_str = "No specific context available."
-        if "mock" not in CONVEX_URL and request.user_id:
+        if not _is_mock_convex_url(CONVEX_URL) and request.user_id:
             try:
-                ctx_data = convex_client.query("support:getUserContext", {"userId": request.user_id})
+                client = get_convex_client()
+                if client is not None:
+                    ctx_data = client.query("support:getUserContext", {"userId": request.user_id})
+                else:
+                    ctx_data = None
                 user_context_str = str(ctx_data)
             except Exception as e:
                 print(f"Error fetching context: {e}")
@@ -106,14 +147,16 @@ async def trigger_ai_chat(request: ChatRequest):
         ai_text = response.text
         
         # Write the response back to Convex DB.
-        if "mock" not in CONVEX_URL:
-            convex_client.mutation("support:sendMessage", {
-                "ticketId": request.ticket_id,
-                "senderId": "system",
-                "senderRole": "ai",
-                "content": ai_text,
-                "isAiGenerated": True
-            })
+        if not _is_mock_convex_url(CONVEX_URL):
+            client = get_convex_client()
+            if client is not None:
+                client.mutation("support:sendMessage", {
+                    "ticketId": request.ticket_id,
+                    "senderId": "system",
+                    "senderRole": "ai",
+                    "content": ai_text,
+                    "isAiGenerated": True
+                })
         
         return {"status": "success", "response": ai_text}
     except Exception as e:
