@@ -103,9 +103,9 @@ export function RiskChart() {
                   axisLine={false}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Bar dataKey="low" fill="url(#riskLowDash)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="medium" fill="url(#riskMediumDash)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="high" fill="url(#riskHighDash)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="low"    fill="url(#riskLowDash)"    radius={4} />
+                <Bar dataKey="medium" fill="url(#riskMediumDash)" radius={4} />
+                <Bar dataKey="high"   fill="url(#riskHighDash)"   radius={4} />
               </BarChart>
             </ResponsiveContainer>
           )}

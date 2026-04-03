@@ -179,10 +179,10 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="day" stroke="oklch(0.6 0.01 260)" fontSize={12} tickLine={false} axisLine={false} dy={10} />
                   <YAxis stroke="oklch(0.6 0.01 260)" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                  <Bar dataKey="low" fill="url(#riskLow)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="medium" fill="url(#riskMedium)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="high" fill="url(#riskHigh)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="critical" fill="url(#riskCritical)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="low"      fill="url(#riskLow)"      radius={4} />
+                  <Bar dataKey="medium"   fill="url(#riskMedium)"   radius={4} />
+                  <Bar dataKey="high"     fill="url(#riskHigh)"     radius={4} />
+                  <Bar dataKey="critical" fill="url(#riskCritical)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
