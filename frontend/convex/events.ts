@@ -103,3 +103,26 @@ export const getEventsByApp = query({
         .collect();
   },
 });
+
+export const getTotalUserEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return 0;
+    
+    const apps = await ctx.db
+        .query("applications")
+        .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+        .collect();
+    
+    let totalCount = 0;
+    for (const app of apps) {
+        const events = await ctx.db
+            .query("events")
+            .withIndex("by_application", (q) => q.eq("applicationId", app._id))
+            .collect();
+        totalCount += events.length;
+    }
+    return totalCount;
+  }
+});
