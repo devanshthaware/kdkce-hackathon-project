@@ -14,6 +14,7 @@ import { ArrowUpDown, Search, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 import { formatDistanceToNow } from "date-fns"
 
 type RiskLevel = "low" | "medium" | "high" | "critical"
@@ -25,11 +26,13 @@ type SortDir = "asc" | "desc"
 
 import { useOrganization } from "@/components/providers/organization-provider"
 
-export function ActivityTable() {
+export function ActivityTable({ applicationId }: { applicationId?: string | Id<"applications"> }) {
   const { activeOrganization } = useOrganization()
-  const activities = useQuery(
-    api.activities.list,
-    activeOrganization ? { organizationId: activeOrganization } : "skip"
+  const sessions = useQuery(
+    api.sessions.list,
+    applicationId 
+      ? { applicationId: applicationId as any } 
+      : (activeOrganization ? { organizationId: activeOrganization } : "skip")
   )
   const [search, setSearch] = useState("")
   const [sortField, setSortField] = useState<SortField>(null)
@@ -45,34 +48,44 @@ export function ActivityTable() {
   }
 
   const filtered = useMemo(() => {
-    if (!activities) return []
-    let data = [...activities]
+    if (!sessions) return []
+    let data = [...sessions]
     if (search) {
       const q = search.toLowerCase()
       data = data.filter(
-        (a) =>
-          a.userEmail.toLowerCase().includes(q) ||
-          a.action.toLowerCase().includes(q) ||
-          a.location.toLowerCase().includes(q) ||
-          a.device.toLowerCase().includes(q)
+        (s) =>
+          (s.userEmail || "").toLowerCase().includes(q) ||
+          (s.state || "").toLowerCase().includes(q) ||
+          (s.location || "").toLowerCase().includes(q) ||
+          (s.device || "").toLowerCase().includes(q)
       )
     }
     if (sortField) {
       data.sort((a, b) => {
         let cmp = 0
-        if (sortField === "user") cmp = a.userEmail.localeCompare(b.userEmail)
-        else if (sortField === "risk") cmp = (riskOrder[a.risk] || 0) - (riskOrder[b.risk] || 0)
-        else if (sortField === "time") cmp = a.timestamp - b.timestamp
+        if (sortField === "user") cmp = (a.userEmail || "").localeCompare(b.userEmail || "")
+        else if (sortField === "risk") {
+          // Map state to a risk tier for sorting
+          const getRiskLevel = (state: string) => {
+             if (state === "TERMINATED" || state === "BLOCKED") return "critical";
+             if (state === "CHALLENGED" || state === "RESTRICTED") return "high";
+             if (state === "EVALUATING") return "medium";
+             return "low";
+          }
+          const riskA = riskOrder[getRiskLevel(a.state || "")] || 0
+          const riskB = riskOrder[getRiskLevel(b.state || "")] || 0
+          cmp = riskA - riskB
+        }
+        else if (sortField === "time") cmp = (a.loginTime || 0) - (b.loginTime || 0)
         return sortDir === "desc" ? -cmp : cmp
       })
     }
     return data
-  }, [activities, search, sortField, sortDir])
+  }, [sessions, search, sortField, sortDir])
 
-  if (activities === undefined) {
-    return <div className="py-8 text-center text-muted-foreground">Loading activity...</div>
+  if (sessions === undefined) {
+    return <div className="py-8 text-center text-muted-foreground">Loading sessions...</div>
   }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="relative max-w-xs">
@@ -101,7 +114,7 @@ export function ActivityTable() {
                 User <ArrowUpDown className="size-3" />
               </Button>
             </TableHead>
-            <TableHead>Action</TableHead>
+            <TableHead>Session State</TableHead>
             <TableHead className="hidden md:table-cell">Device</TableHead>
             <TableHead className="hidden lg:table-cell">Location</TableHead>
             <TableHead>
@@ -120,24 +133,36 @@ export function ActivityTable() {
           {filtered.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                No matching activity found.
+                No matching sessions found.
               </TableCell>
             </TableRow>
           ) : (
-            filtered.map((activity) => (
-              <TableRow key={activity._id} className="border-border/30">
-                <TableCell className="font-medium">{activity.userEmail}</TableCell>
-                <TableCell className="text-muted-foreground">{activity.action}</TableCell>
-                <TableCell className="hidden text-muted-foreground md:table-cell">{activity.device}</TableCell>
-                <TableCell className="hidden text-muted-foreground lg:table-cell">{activity.location}</TableCell>
-                <TableCell>
-                  <RiskBadge level={activity.risk as any} />
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground">
-                  {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                </TableCell>
-              </TableRow>
-            ))
+            filtered.map((session) => {
+              // Map state to a semantic risk level badge
+              const getRiskLevel = (state: string) => {
+                if (state === "TERMINATED" || state === "BLOCKED") return "critical";
+                if (state === "CHALLENGED" || state === "RESTRICTED") return "high";
+                if (state === "EVALUATING") return "medium";
+                return "low";
+              }
+
+              return (
+                <TableRow key={session._id} className="border-border/30">
+                  <TableCell className="font-medium">{session.userEmail || "Anonymous"}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {session.state}
+                  </TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{session.device || "Unknown"}</TableCell>
+                  <TableCell className="hidden text-muted-foreground lg:table-cell">{session.location || "Unknown"}</TableCell>
+                  <TableCell>
+                    <RiskBadge level={getRiskLevel(session.state || "low")} />
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {formatDistanceToNow(new Date(session.loginTime || Date.now()), { addSuffix: true })}
+                  </TableCell>
+                </TableRow>
+              )
+            })
           )}
         </TableBody>
       </Table>

@@ -75,3 +75,31 @@ export const getLifecycle = query({
     return [];
   },
 });
+
+export const getEventsByApp = query({
+  args: { applicationId: v.id("applications") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const app = await ctx.db.get(args.applicationId);
+    if (!app) return [];
+
+    // Basic security check (already performed by validateAppAccess in other queries)
+    const userId = identity.subject;
+    if (app.userId !== userId && app.organizationId) {
+        const membership = await ctx.db
+            .query("organizationMembers")
+            .withIndex("by_user", (q: any) => q.eq("userId", userId))
+            .filter((q: any) => q.eq(q.field("organizationId"), app.organizationId))
+            .first();
+        if (!membership) return [];
+    }
+
+    return await ctx.db
+        .query("events")
+        .withIndex("by_application", (q) => q.eq("applicationId", args.applicationId))
+        .order("desc")
+        .collect();
+  },
+});

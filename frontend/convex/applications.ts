@@ -28,11 +28,35 @@ export const list = query({
     },
 });
 
+export const getApp = query({
+  args: { id: v.id("applications") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const app = await ctx.db.get(args.id);
+    if (!app) return null;
+
+    // Security Check
+    const userId = identity.subject;
+    if (app.userId !== userId && app.organizationId) {
+        const membership = await ctx.db
+            .query("organizationMembers")
+            .withIndex("by_user", (q: any) => q.eq("userId", userId))
+            .filter((q: any) => q.eq(q.field("organizationId"), app.organizationId))
+            .first();
+        if (!membership) return null;
+    }
+
+    return app;
+  },
+});
+
 export const getApplicationsByOrg = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
+    if (!identity) return [];
 
     // ENFORCEMENT: Verify org membership
     const membership = await ctx.db
@@ -107,71 +131,3 @@ export const toggleStatus = mutation({
     },
 });
 
-export const getOrCreateDemoApp = mutation({
-    args: {},
-    handler: async (ctx) => {
-        const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Not authenticated");
-
-        const existing = await ctx.db
-            .query("applications")
-            .withIndex("by_user", (q) => q.eq("userId", identity.subject))
-            .filter((q) => q.eq("name", "Demo Application"))
-            .first();
-
-        if (existing) return existing;
-
-        let policy = await ctx.db
-            .query("riskPolicies")
-            .withIndex("by_user", (q) => q.eq("userId", identity.subject))
-            .first();
-
-        if (!policy) {
-            const policyId = await ctx.db.insert("riskPolicies", {
-                name: "Default Policy",
-                description: "Standard risk assessment settings",
-                thresholds: { low: "0.2", medium: "0.5", high: "0.8", critical: "0.9" },
-                mlEnabled: true,
-                userId: identity.subject,
-            });
-            policy = await ctx.db.get(policyId);
-        }
-
-        let orgMembership = await ctx.db
-            .query("organizationMembers")
-            .withIndex("by_user", (q) => q.eq("userId", identity.subject))
-            .first();
-
-        let organizationId;
-        if (!orgMembership) {
-            organizationId = await ctx.db.insert("organizations", {
-                name: "Personal Workspace",
-                ownerId: identity.subject,
-                createdAt: Date.now(),
-            });
-            await ctx.db.insert("organizationMembers", {
-                organizationId,
-                userId: identity.subject,
-                role: "owner",
-            });
-        } else {
-            organizationId = orgMembership.organizationId;
-        }
-
-        const id = await ctx.db.insert("applications", {
-            name: "Demo Application",
-            environment: "Development",
-            riskPolicyId: policy!._id,
-            status: "Active",
-            type: "Web app",
-            mlEnhancement: true,
-            appId: `app_demo_${Math.random().toString(36).substring(2, 6)}`,
-            apiKey: `ak_demo_${Math.random().toString(36).substring(2, 8)}`,
-            secret: `sk_demo_${Math.random().toString(36).substring(2, 8)}`,
-            userId: identity.subject,
-            organizationId,
-        });
-
-        return await ctx.db.get(id);
-    },
-});

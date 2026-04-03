@@ -8,7 +8,7 @@ export const list = query({
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
-        if (!identity) throw new Error("Unauthorized");
+        if (!identity) return [];
 
         const userId = identity.subject;
 

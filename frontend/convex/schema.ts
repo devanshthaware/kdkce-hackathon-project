@@ -106,4 +106,24 @@ export default defineSchema({
         key: v.string(),
         value: v.any(),
     }).index("by_key", ["key"]),
+    users: defineTable({
+        email: v.string(),
+        password_hash: v.string(),
+        name: v.string(),
+        role: v.union(v.literal("USER"), v.literal("ADMIN")),
+        created_at: v.number(),
+        updated_at: v.number(),
+        last_login_at: v.optional(v.number()),
+        failed_login_attempts: v.optional(v.number()),
+        locked_until: v.optional(v.number())
+    }).index("by_email", ["email"]),
+    loginHistory: defineTable({
+        user_id: v.id("users"),
+        email: v.string(),
+        ip_address: v.optional(v.string()),
+        device: v.optional(v.string()),
+        location: v.optional(v.string()),
+        status: v.union(v.literal("SUCCESS"), v.literal("FAILED")),
+        created_at: v.number()
+    }).index("by_user", ["user_id"]),
 });

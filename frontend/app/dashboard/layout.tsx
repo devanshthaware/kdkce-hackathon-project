@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { DashboardSidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { SecurityPopup } from "@/components/support/SecurityPopup"
-import { SeedWrapper } from "@/components/dashboard/seed-wrapper"
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -34,7 +34,6 @@ export default async function DashboardLayout({
         <Topbar />
         <main className="p-6">{children}</main>
         <SecurityPopup />
-        <SeedWrapper />
       </div>
     </div>
   )

@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api"
 import { useOrganization } from "@/components/providers/organization-provider"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { RiskChart } from "@/components/dashboard/risk-chart"
-import { ActivityTable } from "@/components/dashboard/activity-table"
 import { ProjectInfoCard } from "@/components/dashboard/project-info-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,7 +42,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stats?.totalSessions === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm">
+          <div className="size-12 rounded-full bg-secondary/30 flex items-center justify-center mb-4 text-muted-foreground/40">
+            <AppWindow className="size-6" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground">No active sessions yet</h3>
+          <p className="text-sm text-muted-foreground mt-2 max-w-md">
+            Your telemetry dashboard will populate automatically in real-time as users begin interacting with your connected applications.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Risk Events"
           value={stats?.totalSessions.toLocaleString() ?? "..."}
@@ -103,22 +114,14 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <Card className="rounded-xl border-border/50 bg-card/30 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-semibold">Recent Threat Logs</CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs">View All</Button>
-            </CardHeader>
-            <CardContent>
-              <ActivityTable />
-            </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-1">
+        <div>
           <ProjectInfoCard />
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }
+

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { useOrganization } from "@/components/providers/organization-provider"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -163,6 +164,7 @@ type SortDir = "asc" | "desc"
 
 export default function ApplicationsPage() {
   const { activeOrganization } = useOrganization()
+  const router = useRouter()
   
   const apps = useQuery(
     api.applications.getApplicationsByOrg, 
@@ -616,7 +618,11 @@ export default function ApplicationsPage() {
                 </TableRow>
               ) : (
                 filtered.map((app) => (
-                  <TableRow key={app._id} className="border-border/30">
+                  <TableRow 
+                    key={app._id} 
+                    className="border-border/30 cursor-pointer hover:bg-secondary/20 transition-colors"
+                    onClick={() => router.push(`/dashboard/applications/${app._id}`)}
+                  >
                     <TableCell className="font-medium">{app.name}</TableCell>
                     <TableCell>
                       <Badge
@@ -646,7 +652,7 @@ export default function ApplicationsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
                             <MoreHorizontal className="size-4" />
                             <span className="sr-only">Open actions menu</span>
