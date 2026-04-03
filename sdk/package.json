@@ -1,7 +1,7 @@
 {
   "name": "@aegis/auth-sdk",
   "version": "1.0.0",
-  "description": "Production-grade TypeScript SDK for Adaptive Authentication with device fingerprinting and continuous monitoring",
+  "description": "Adaptive authentication SDK with real-time risk-based security and continuous session monitoring",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
