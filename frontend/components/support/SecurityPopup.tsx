@@ -1,46 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle, ShieldAlert, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShieldAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useUser } from "@clerk/nextjs";
 
 export function SecurityPopup() {
-    const [isVisible, setIsVisible] = useState(false);
+    const [dismissed, setDismissed] = useState(false);
     const router = useRouter();
-    const { user } = useUser();
 
-    // Mock checking Risk Policy via convex or direct local storage 
-    // In a full implementation, this could subscribe to a 'currentSession' convex query.
-    // For now, we simulate a check every 30s or on mount.
+    // Real-time Convex subscription: fetch the latest unread CRITICAL/HIGH alerts
+    const alerts = useQuery(api.alerts.getAlerts, { limit: 10 });
+    const markAllRead = useQuery === undefined ? undefined : undefined; // just for reference
 
-    useEffect(() => {
-        // Simulate detecting a HIGH risk level (for demo purposes)
-        const checkRisk = () => {
-            const triggered = localStorage.getItem("aegis_demo_risk_trigger");
-            if (triggered === "HIGH" && !sessionStorage.getItem("aegis_dismissed_security_popup")) {
-                setIsVisible(true);
-            }
-        };
+    // Show only if there's an unread CRITICAL or HIGH severity alert and user hasn't dismissed this session
+    const criticalAlert = alerts?.find(a => !a.isRead && (a.severity === "CRITICAL" || a.severity === "HIGH"));
 
-        // Initial check
-        checkRisk();
-
-        const interval = setInterval(checkRisk, 5000);
-        return () => clearInterval(interval);
-    }, []);
+    const isVisible = !!criticalAlert && !dismissed;
 
     const handleDismiss = () => {
-        setIsVisible(false);
-        sessionStorage.setItem("aegis_dismissed_security_popup", "true");
+        setDismissed(true);
     };
 
     const handleContactSupport = () => {
-        setIsVisible(false);
-        sessionStorage.setItem("aegis_dismissed_security_popup", "true");
+        setDismissed(true);
         router.push("/dashboard/support");
     };
 
@@ -61,17 +46,20 @@ export function SecurityPopup() {
                     </div>
                     <div className="space-y-1">
                         <h4 className="font-semibold leading-none tracking-tight text-destructive">
-                            Security Alert Detected
+                            {criticalAlert?.severity === "CRITICAL" ? "Critical Security Alert" : "High Risk Alert"}
                         </h4>
                         <p className="text-sm text-destructive/80">
-                            Our Risk Engine detected anomalous activity in your current session.
+                            {criticalAlert?.message ?? "Anomalous activity detected in your environment."}
+                        </p>
+                        <p className="text-[10px] text-destructive/60 font-mono">
+                            App: {criticalAlert?.appName ?? "System"}
                         </p>
                         <div className="mt-4 flex gap-2">
                             <Button size="sm" variant="destructive" onClick={handleContactSupport}>
                                 Contact Support
                             </Button>
-                            <Button size="sm" variant="outline" className="border-destructive/20 text-destructive hover:bg-destructive" onClick={handleDismiss}>
-                                Ignore
+                            <Button size="sm" variant="outline" className="border-destructive/20 text-destructive hover:bg-destructive/10" onClick={handleDismiss}>
+                                Dismiss
                             </Button>
                         </div>
                     </div>

@@ -121,6 +121,17 @@ export const create = mutation({
             updatedAt: Date.now()
         });
 
+        // Generate API_EVENT alert
+        await ctx.db.insert("alerts", {
+            userId: identity.subject,
+            applicationId: id,
+            type: "API_EVENT",
+            message: `New application "${args.name}" registered and API key issued.`,
+            severity: "LOW",
+            isRead: false,
+            createdAt: Date.now()
+        });
+
         return await ctx.db.get(id);
     },
 });
@@ -145,8 +156,20 @@ export const toggleStatus = mutation({
         await validateOwnership(ctx, args.id);
         const app = await ctx.db.get(args.id);
         if (!app) throw new Error("Application not found");
+        const newStatus = app.status === "Active" ? "Inactive" : "Active";
         await ctx.db.patch(args.id, {
-            status: app.status === "Active" ? "Inactive" : "Active",
+            status: newStatus,
+        });
+
+        // Generate API_EVENT alert
+        await ctx.db.insert("alerts", {
+            userId: app.userId,
+            applicationId: args.id,
+            type: "API_EVENT",
+            message: `Application "${app.name}" status changed to ${newStatus}.`,
+            severity: "MEDIUM",
+            isRead: false,
+            createdAt: Date.now()
         });
     },
 });
