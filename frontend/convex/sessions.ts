@@ -125,17 +125,17 @@ export const getStats = query({
 
         const highRisk = sessions.filter(s => s.state === "CHALLENGED" || s.state === "RESTRICTED" || s.state === "BLOCKED").length;
         const avgRisk = sessions.length > 0
-            ? sessions.reduce((acc, s) => acc + s.score, 0) / sessions.length
+            ? sessions.reduce((acc, s) => acc + (s.score ?? 0), 0) / sessions.length
             : 0;
 
         const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
         const activeSessions = sessions.filter(s => s.loginTime > twentyFourHoursAgo).length;
 
         const total = sessions.length || 1;
-        const low = sessions.filter(s => s.score <= 0.3).length;
-        const medium = sessions.filter(s => s.score > 0.3 && s.score <= 0.6).length;
-        const high = sessions.filter(s => s.score > 0.6 && s.score <= 0.8).length;
-        const critical = sessions.filter(s => s.score > 0.8).length;
+        const low      = sessions.filter(s => (s.score ?? 0) <= 0.3).length;
+        const medium   = sessions.filter(s => (s.score ?? 0) > 0.3 && (s.score ?? 0) <= 0.6).length;
+        const high     = sessions.filter(s => (s.score ?? 0) > 0.6 && (s.score ?? 0) <= 0.8).length;
+        const critical = sessions.filter(s => (s.score ?? 0) > 0.8).length;
 
         return {
             totalSessions: sessions.length,
@@ -150,6 +150,88 @@ export const getStats = query({
                 critical: Math.round((critical / total) * 100),
             },
         };
+    },
+});
+
+export const getAnalytics = query({
+    args: { organizationId: v.optional(v.id("organizations")) },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return { hourlyRiskDist: [], riskDist: [], deviceTrust: [] };
+
+        const userId = identity.subject;
+
+        let apps: any[] = [];
+        if (args.organizationId) {
+            apps = await ctx.db
+                .query("applications")
+                .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId!))
+                .collect();
+        } else {
+            apps = await ctx.db
+                .query("applications")
+                .withIndex("by_user", (q) => q.eq("userId", userId))
+                .collect();
+        }
+
+        let sessions: any[] = [];
+        for (const app of apps) {
+            const appSessions = await ctx.db
+                .query("sessions")
+                .withIndex("by_application", (q) => q.eq("applicationId", app._id))
+                .collect();
+            sessions.push(...appSessions);
+        }
+
+        const now = Date.now();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        // --- Hourly risk distribution (last 24h, 8 buckets of 3h each) ---
+        const hours = ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"];
+        const hourlyRiskDist = hours.map((hour, idx) => {
+            const bucketStart = now - oneDayMs + idx * (oneDayMs / 8);
+            const bucketEnd = bucketStart + oneDayMs / 8;
+            const bucket = sessions.filter(s => s.loginTime >= bucketStart && s.loginTime < bucketEnd);
+            return {
+                hour,
+                low:      bucket.filter(s => (s.score ?? 0) <= 0.3).length,
+                medium:   bucket.filter(s => (s.score ?? 0) >  0.3 && (s.score ?? 0) <= 0.6).length,
+                high:     bucket.filter(s => (s.score ?? 0) >  0.6).length,
+            };
+        });
+
+        // --- Weekly risk distribution (last 7 days) ---
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const riskDist = Array.from({ length: 7 }, (_, i) => {
+            const dayStart = now - (6 - i) * oneDayMs;
+            const dayEnd   = dayStart + oneDayMs;
+            const daySessions = sessions.filter(s => s.loginTime >= dayStart && s.loginTime < dayEnd);
+            const d = new Date(dayStart);
+            return {
+                day:      dayNames[d.getDay()],
+                low:      daySessions.filter(s => (s.score ?? 0) <= 0.3).length,
+                medium:   daySessions.filter(s => (s.score ?? 0) >  0.3 && (s.score ?? 0) <= 0.6).length,
+                high:     daySessions.filter(s => (s.score ?? 0) >  0.6 && (s.score ?? 0) <= 0.85).length,
+                critical: daySessions.filter(s => (s.score ?? 0) >  0.85).length,
+            };
+        });
+
+        // --- Device trust trends (last 7 days) ---
+        const knownDevices = new Set(["MacBook Pro", "iPhone 15 Pro", "MacBook Air", "iPad Air", "MacBook Pro M3", "Surface Pro"]);
+        const deviceTrust = Array.from({ length: 7 }, (_, i) => {
+            const dayStart = now - (6 - i) * oneDayMs;
+            const dayEnd   = dayStart + oneDayMs;
+            const daySessions = sessions.filter(s => s.loginTime >= dayStart && s.loginTime < dayEnd);
+            const d = new Date(dayStart);
+            return {
+                day:       dayNames[d.getDay()],
+                trusted:   daySessions.filter(s => knownDevices.has(s.device ?? "")).length,
+                unknown:   daySessions.filter(s => (s.device ?? "").toLowerCase().includes("unknown")).length,
+                untrusted: daySessions.filter(s => !knownDevices.has(s.device ?? "") && !(s.device ?? "").toLowerCase().includes("unknown")).length,
+            };
+        });
+
+        return { hourlyRiskDist, riskDist, deviceTrust };
     },
 });
 
@@ -245,7 +327,7 @@ export const updateSessionRisk = mutation({
             throw new Error(errorMsg);
         }
 
-        const correlationId = args.correlationId ?? session.correlationId;
+        const correlationId = args.correlationId ?? session.correlationId ?? "";
 
         await ctx.db.patch(args.sessionId, { score: args.score });
 
