@@ -2,6 +2,21 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+    activities: defineTable({
+        applicationId: v.id("applications"),
+        timestamp: v.float64(),
+        type: v.optional(v.string()),      // e.g. "login" | "risk_update" | "blocked" | "challenged"
+        sessionId: v.optional(v.id("sessions")),
+        userEmail: v.optional(v.string()),
+        ip: v.optional(v.string()),
+        location: v.optional(v.string()),
+        riskScore: v.optional(v.float64()),
+        details: v.optional(v.any()),
+        // Legacy fields from old documents
+        action: v.optional(v.string()),
+        risk: v.optional(v.string()),
+        device: v.optional(v.string()),
+    }).index("by_application", ["applicationId"]),
     events: defineTable({
         type: v.string(), // SIGNAL_RECEIVED | RISK_CALCULATED | DECISION_MADE | ACTION_DISPATCHED | ACTION_EXECUTED | STATE_TRANSITIONED
         sessionId: v.id("sessions"),
@@ -60,12 +75,16 @@ export default defineSchema({
         ip: v.string(),
         location: v.string(),
         loginTime: v.float64(),
-        score: v.float64(),
-        state: v.string(), // "NEW" | "EVALUATING" | "ACTIVE" | "CHALLENGED" | "RESTRICTED" | "BLOCKED" | "TERMINATED"
-        stateVersion: v.float64(),
-        updatedAt: v.float64(),
         userEmail: v.string(),
-        correlationId: v.string(),
+        // New fields — optional so legacy documents remain valid
+        correlationId: v.optional(v.string()),
+        score: v.optional(v.float64()),
+        state: v.optional(v.string()), // "NEW" | "EVALUATING" | "ACTIVE" | "CHALLENGED" | "RESTRICTED" | "BLOCKED" | "TERMINATED"
+        stateVersion: v.optional(v.float64()),
+        updatedAt: v.optional(v.float64()),
+        // Legacy fields from old documents
+        riskScore: v.optional(v.float64()),
+        status: v.optional(v.string()),
     }).index("by_application", ["applicationId"]),
     supportMessages: defineTable({
         content: v.string(),
