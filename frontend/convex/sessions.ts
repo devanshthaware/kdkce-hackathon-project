@@ -350,6 +350,30 @@ export const createSession = mutation({
         // Enter state machine
         await transitionSession(ctx.db, sessionId, "EVALUATING", "SESSION_CREATED", correlationId);
 
+        // Generate LOGIN alert
+        await ctx.db.insert("alerts", {
+            userId: app.userId,
+            applicationId: args.applicationId,
+            type: "LOGIN",
+            message: `New login detected for ${userEmail}`,
+            severity: "LOW",
+            correlationId,
+            isRead: false,
+            createdAt: Date.now()
+        });
+
+        // Generate API_EVENT alert
+        await ctx.db.insert("alerts", {
+            userId: app.userId,
+            applicationId: args.applicationId,
+            type: "API_EVENT",
+            message: `API key used for authentication (${userEmail})`,
+            severity: "LOW",
+            correlationId,
+            isRead: false,
+            createdAt: Date.now()
+        });
+
         // Trigger ML assessment
         if (app?.mlEnhancement) {
             await ctx.scheduler.runAfter(0, (api as any).ml.assessRisk, {
@@ -365,6 +389,36 @@ export const createSession = mutation({
 
         return sessionId;
     },
+});
+
+export const getUserRecentSession = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) return null;
+
+        const apps = await ctx.db
+            .query("applications")
+            .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+            .collect();
+
+        const appIds = apps.map(app => app._id);
+        
+        let latestSession = null;
+        for (const appId of appIds) {
+            const session = await ctx.db
+                .query("sessions")
+                .withIndex("by_application", (q) => q.eq("applicationId", appId))
+                .order("desc")
+                .first();
+            
+            if (session && (!latestSession || session.loginTime > latestSession.loginTime)) {
+                latestSession = session;
+            }
+        }
+
+        return latestSession;
+    }
 });
 
 export const updateSessionRisk = mutation({

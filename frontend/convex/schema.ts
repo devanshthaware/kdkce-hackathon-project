@@ -135,4 +135,14 @@ export default defineSchema({
         ipAllowlistEnabled: v.boolean(),
         updatedAt: v.number(),
     }).index("by_application", ["applicationId"]),
+    alerts: defineTable({
+        userId: v.string(), // Clerk user ID of the app owner
+        applicationId: v.optional(v.id("applications")), // Optional for org-level alerts
+        type: v.union(v.literal("HIGH_RISK"), v.literal("LOGIN"), v.literal("BLOCKED"), v.literal("API_EVENT")),
+        message: v.string(),
+        severity: v.union(v.literal("LOW"), v.literal("MEDIUM"), v.literal("HIGH"), v.literal("CRITICAL")),
+        correlationId: v.optional(v.string()),
+        isRead: v.boolean(),
+        createdAt: v.number(),
+    }).index("by_user", ["userId"]).index("by_application", ["applicationId"]).index("by_is_read", ["isRead"])
 });

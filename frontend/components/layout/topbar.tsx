@@ -23,16 +23,18 @@ import {
   Bell,
   Shield,
   Menu,
-  AppWindow,
-  ShieldAlert,
-  Radio,
-  Settings,
   X,
   Building2,
   PlusCircle,
   ChevronDown,
-  CreditCard,
-  FileText,
+  LayoutGrid,
+  ShieldCheck,
+  Activity,
+  Users,
+  Webhook,
+  Settings,
+  LifeBuoy,
+  Zap,
 } from "lucide-react"
 
 import { UserButton } from "@clerk/nextjs"
@@ -48,17 +50,27 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 const navItems = [
-  { href: "/dashboard/applications", label: "Applications", icon: AppWindow },
-  { href: "/dashboard/risk-policies", label: "Risk Policies", icon: ShieldAlert },
-  { href: "/membership", label: "Membership", icon: CreditCard },
-  { href: "/docs", label: "Documentation", icon: FileText },
+  { href: "/dashboard/applications", label: "Applications", icon: LayoutGrid },
+  { href: "/dashboard/security", label: "Security", icon: ShieldCheck },
+  { href: "/dashboard/access", label: "Premium", icon: Zap },
+  { href: "/dashboard/integrations", label: "Integrations", icon: Webhook },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/dashboard/support", label: "Support Center", icon: Radio },
+  { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
 ]
+
+function formatTimeAgo(timestamp: number) {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
 
 export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -67,19 +79,17 @@ export function Topbar() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [newOrgName, setNewOrgName] = useState("")
   const createOrganization = useMutation(api.organizations.create)
+  const markAlertAsRead = useMutation(api.alerts.markAsRead)
+  const markAllAlertsAsRead = useMutation(api.alerts.markAllAsRead)
+  const alerts = useQuery(api.alerts.getAlerts, { limit: 20 })
   
   const pathname = usePathname()
   const router = useRouter()
 
-  const notifications = [
-    { id: 1, text: "High risk session detected from Moscow, RU", time: "2m ago", unread: true },
-    { id: 2, text: "API key ak_dev_* was revoked", time: "15m ago", unread: true },
-    { id: 3, text: "New application registered: Partner API", time: "1h ago", unread: false },
-    { id: 4, text: "Risk policy threshold updated for Finance model", time: "3h ago", unread: false },
-  ]
-
   const { activeOrganization, setActiveOrganization, organizations } = useOrganization()
   const activeOrgData = organizations?.find(org => org._id === activeOrganization)
+
+  const unreadCount = alerts?.filter(a => !a.isRead).length || 0
 
   return (
     <>
@@ -113,19 +123,7 @@ export function Topbar() {
             })}
           </nav>
 
-          {/* Search (Moved to center-ish part of the nav area) */}
-          <div className="hidden xl:block flex-1 max-w-sm">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-border bg-secondary/30 pl-9 pr-4 text-sm text-foreground focus:border-primary/50 focus:outline-none"
-              />
-            </div>
-          </div>
+
         </div>
 
         {/* Right side actions */}
@@ -215,37 +213,81 @@ export function Topbar() {
                 className="relative text-muted-foreground hover:text-foreground"
               >
                 <Bell className="size-4" />
-                <span className="absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive border-[1.5px] border-background" />
+                )}
                 <span className="sr-only">Notifications</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 bg-popover p-0 shadow-xl border-border/50">
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <span className="text-sm font-semibold">Activity Stream</span>
-                <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Alerts</span>
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-secondary/20">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Activity Stream</span>
+                  {unreadCount > 0 && (
+                    <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      {unreadCount} New
+                    </span>
+                  )}
+                </div>
+                {unreadCount > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    className="h-auto p-0 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                    onClick={() => markAllAlertsAsRead()}
+                  >
+                    Mark all read
+                  </Button>
+                )}
               </div>
               <div className="max-h-[300px] overflow-y-auto">
-                {notifications.map((notification) => (
-                  <DropdownMenuItem
-                    key={notification.id}
-                    className="flex flex-col items-start gap-1 px-4 py-3 border-b border-border/10 last:border-0"
-                  >
-                    <div className="flex items-start gap-2">
-                      {notification.unread && (
-                        <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                      )}
-                      <span className={cn("text-xs leading-relaxed", !notification.unread && "ml-3.5 text-muted-foreground")}>
-                        {notification.text}
-                      </span>
+                {!alerts || alerts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+                        <Activity className="size-8 text-muted-foreground/30 mb-2" />
+                        <p className="text-xs font-semibold text-muted-foreground">All clear</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">We'll alert you of any suspicious activity.</p>
                     </div>
-                    <span className="ml-3.5 text-[10px] font-medium text-muted-foreground/60">
-                      {notification.time}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
+                ) : (
+                    alerts.map((alert) => (
+                    <DropdownMenuItem
+                        key={alert._id}
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          if (!alert.isRead) markAlertAsRead({ alertId: alert._id })
+                        }}
+                        className={cn(
+                          "flex flex-col items-start gap-1.5 px-4 py-3 border-b border-border/10 last:border-0 cursor-pointer focus:bg-secondary/40",
+                          !alert.isRead ? "bg-primary/5 hover:bg-primary/10" : ""
+                        )}
+                    >
+                        <div className="flex items-start justify-between w-full">
+                          <div className="flex items-center gap-1.5">
+                            {!alert.isRead && <span className="size-1.5 shrink-0 rounded-full bg-primary" />}
+                            <span className={cn(
+                              "size-1.5 shrink-0 rounded-full",
+                              alert.severity === "CRITICAL" ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                              alert.severity === "HIGH" ? "bg-orange-500" :
+                              alert.severity === "MEDIUM" ? "bg-yellow-500" : "bg-blue-500"
+                            )} />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">{alert.appName}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-muted-foreground/60 whitespace-nowrap">
+                            {formatTimeAgo(alert.createdAt)}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 w-full mt-0.5">
+                          <span className={cn(
+                            "flex items-center text-xs leading-relaxed", 
+                            !alert.isRead ? "text-foreground font-medium" : "text-muted-foreground"
+                          )}>
+                            {alert.message}
+                          </span>
+                        </div>
+                    </DropdownMenuItem>
+                    ))
+                )}
               </div>
-              <DropdownMenuItem className="justify-center py-3 text-xs font-bold text-primary hover:bg-primary/5 cursor-pointer rounded-t-none">
-                View Intelligence Report
+              <DropdownMenuItem asChild className="justify-center py-3 text-xs font-bold text-primary hover:bg-primary/5 cursor-pointer rounded-t-none border-t border-border/40">
+                <Link href="/dashboard">Explore Intelligence Stream</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

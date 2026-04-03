@@ -156,5 +156,22 @@ export const syncMLResults = mutation({
             "ML_ASSESSMENT_COMPLETED",
             args.correlationId
         );
+
+        // Generate Risk/Block Alerts
+        if (args.decisionType === "BLOCK" || args.score >= 0.8) {
+            const app = await ctx.db.get(session.applicationId);
+            if (app) {
+                await ctx.db.insert("alerts", {
+                    userId: app.userId,
+                    applicationId: session.applicationId,
+                    type: args.decisionType === "BLOCK" ? "BLOCKED" : "HIGH_RISK",
+                    message: args.decisionType === "BLOCK" ? "Session blocked due to high risk policy" : "Critical risk session detected by ML",
+                    severity: "CRITICAL",
+                    correlationId: args.correlationId,
+                    isRead: false,
+                    createdAt: Date.now()
+                });
+            }
+        }
     },
 });

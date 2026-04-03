@@ -28,8 +28,8 @@ type SessionStatus = "safe" | "suspicious" | "blocked" | "ACTIVE" | "CHALLENGED"
 type SortField = "user" | "riskScore" | "status" | null
 type SortDir = "asc" | "desc"
 
-export function LiveSessionsPanel({ applicationId }: { applicationId: Id<"applications"> }) {
-  const sessionsList = useQuery(api.sessions.list, { applicationId })
+export function LiveSessionsPanel({ applicationId }: { applicationId?: Id<"applications"> }) {
+  const sessionsList = useQuery(api.sessions.list, { applicationId: applicationId ?? undefined })
   const [search, setSearch] = useState("")
   const [sortField, setSortField] = useState<SortField>(null)
   const [sortDir, setSortDir] = useState<SortDir>("asc")

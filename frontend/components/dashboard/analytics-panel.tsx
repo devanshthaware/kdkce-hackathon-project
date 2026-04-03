@@ -63,8 +63,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null
 }
 
-export function AnalyticsPanel({ applicationId }: { applicationId: Id<"applications"> }) {
-  const analytics = useQuery(api.sessions.getAnalytics, { applicationId })
+export function AnalyticsPanel({ applicationId }: { applicationId?: Id<"applications"> }) {
+  const analytics = useQuery(api.sessions.getAnalytics, { applicationId: applicationId ?? undefined })
 
   if (!analytics) {
     return (

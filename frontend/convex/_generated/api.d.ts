@@ -10,6 +10,7 @@
 
 import type * as activities from "../activities.js";
 import type * as admin from "../admin.js";
+import type * as alerts from "../alerts.js";
 import type * as applications from "../applications.js";
 import type * as decisions from "../decisions.js";
 import type * as events from "../events.js";
@@ -33,6 +34,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   activities: typeof activities;
   admin: typeof admin;
+  alerts: typeof alerts;
   applications: typeof applications;
   decisions: typeof decisions;
   events: typeof events;

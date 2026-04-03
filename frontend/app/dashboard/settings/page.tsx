@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -22,20 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Copy, Plus, Key, Plug, Check } from "lucide-react"
-
-interface ApiKey {
-  name: string
-  prefix: string
-  created: string
-  status: "Active" | "Revoked"
-}
-
-interface Integration {
-  name: string
-  description: string
-  connected: boolean
-}
+import { Copy, Key, Check, Shield, Plug, ExternalLink } from "lucide-react"
+import { useQuery, useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { toast } from "sonner"
+import Link from "next/link"
 
 export default function SettingsPage() {
   const [orgName, setOrgName] = useState("AegisAuth Inc.")
@@ -43,26 +33,10 @@ export default function SettingsPage() {
   const [timezone, setTimezone] = useState("UTC")
   const [saved, setSaved] = useState(false)
 
+  // Live Convex data — fetches all apps tied to the logged-in Clerk user (no org required)
+  const applications = useQuery(api.applications.list)
+  const toggleStatus = useMutation(api.applications.toggleStatus)
 
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([
-    { name: "Production Key", prefix: "ak_live_", created: "Dec 15, 2025", status: "Active" },
-    { name: "Staging Key", prefix: "ak_test_", created: "Jan 8, 2026", status: "Active" },
-    { name: "Development Key", prefix: "ak_dev_", created: "Feb 1, 2026", status: "Revoked" },
-  ])
-
-  const [integrations, setIntegrations] = useState<Integration[]>([
-    { name: "Slack", description: "Real-time security alerts in Slack channels", connected: true },
-    { name: "PagerDuty", description: "Incident escalation for critical events", connected: true },
-    { name: "Datadog", description: "Export risk metrics and monitoring data", connected: false },
-    { name: "Splunk", description: "SIEM integration for security logs", connected: false },
-    { name: "Okta", description: "SSO and identity provider federation", connected: true },
-    { name: "AWS CloudWatch", description: "Cloud infrastructure monitoring", connected: false },
-  ])
-
-  const [generateKeyOpen, setGenerateKeyOpen] = useState(false)
-  const [newKeyName, setNewKeyName] = useState("")
-  const [newKeyEnv, setNewKeyEnv] = useState("production")
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   function handleSaveGeneral() {
@@ -70,49 +44,22 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
-
-  function handleGenerateKey() {
-    if (!newKeyName.trim()) return
-    const prefixMap: Record<string, string> = { production: "ak_live_", staging: "ak_test_", development: "ak_dev_" }
-    const randomSuffix = Math.random().toString(36).substring(2, 14)
-    const fullKey = `${prefixMap[newKeyEnv]}${randomSuffix}`
-    setGeneratedKey(fullKey)
-    setApiKeys([
-      ...apiKeys,
-      {
-        name: newKeyName.trim(),
-        prefix: prefixMap[newKeyEnv],
-        created: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-        status: "Active",
-      },
-    ])
-  }
-
-  function handleCloseGenerateKey() {
-    setGenerateKeyOpen(false)
-    setNewKeyName("")
-    setNewKeyEnv("production")
-    setGeneratedKey(null)
-  }
-
-  function handleCopyKey(text: string) {
+  function handleCopy(text: string, id: string) {
     navigator.clipboard.writeText(text)
-    setCopiedKey(text)
+    setCopiedKey(id)
     setTimeout(() => setCopiedKey(null), 2000)
+    toast.success("Copied to clipboard")
   }
 
-  function handleRevokeKey(index: number) {
-    const updated = [...apiKeys]
-    updated[index] = { ...updated[index], status: updated[index].status === "Active" ? "Revoked" : "Active" }
-    setApiKeys(updated)
-  }
-
-  function handleToggleIntegration(index: number) {
-    const updated = [...integrations]
-    updated[index] = { ...updated[index], connected: !updated[index].connected }
-    setIntegrations(updated)
-  }
-
+  // Static integrations (external tools — these don't have a Convex table yet)
+  const integrations = [
+    { name: "Slack", description: "Real-time security alerts in Slack channels", connected: false },
+    { name: "PagerDuty", description: "Incident escalation for critical events", connected: false },
+    { name: "Datadog", description: "Export risk metrics and monitoring data", connected: false },
+    { name: "Splunk", description: "SIEM integration for security logs", connected: false },
+    { name: "Okta", description: "SSO and identity provider federation", connected: false },
+    { name: "AWS CloudWatch", description: "Cloud infrastructure monitoring", connected: false },
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -181,57 +128,88 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* API Keys — Live from Convex */}
         <TabsContent value="api-keys" className="mt-6">
           <Card className="rounded-xl border-border/50 bg-card">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base">API Keys</CardTitle>
-                  <CardDescription>Manage API keys for application integrations.</CardDescription>
+                  <CardDescription>
+                    Live credentials from your registered applications. Updates instantly on any change.
+                  </CardDescription>
                 </div>
-                <Button size="sm" className="gap-2 rounded-lg" onClick={() => setGenerateKeyOpen(true)}>
-                  <Plus className="size-4" />
-                  Generate Key
+                <Button asChild size="sm" className="gap-2 rounded-lg">
+                  <Link href="/dashboard/integrations">
+                    <Key className="size-4" />
+                    Manage Keys
+                  </Link>
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
+              {applications === undefined && (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
+                  <div className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <p className="text-xs animate-pulse">Loading live API keys...</p>
+                </div>
+              )}
+              {applications !== undefined && applications.length === 0 && (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  No applications registered. <Link href="/dashboard/applications" className="text-primary hover:underline">Create one</Link> to generate API keys.
+                </div>
+              )}
               <div className="flex flex-col gap-4">
-                {apiKeys.map((apiKey, index) => (
+                {applications?.map((app) => (
                   <div
-                    key={`${apiKey.name}-${index}`}
+                    key={app._id}
                     className="flex items-center justify-between rounded-lg border border-border/30 bg-secondary/20 p-4"
                   >
                     <div className="flex items-center gap-3">
                       <Key className="size-4 text-muted-foreground" />
                       <div className="flex flex-col gap-0.5">
-                        <h3 className="text-lg font-medium">AegisAuth API</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold">{app.name}</h3>
+                          <Badge variant="outline" className="text-[10px]">{app.environment}</Badge>
+                        </div>
                         <span className="font-mono text-xs text-muted-foreground">
-                          {apiKey.prefix}{"************"}
+                          {app.apiKey.substring(0, 14)}{"••••••••"}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="hidden text-xs text-muted-foreground sm:block">
-                        Created {apiKey.created}
-                      </span>
                       <Badge
                         variant="outline"
                         className={
-                          apiKey.status === "Active"
+                          app.status === "Active"
                             ? "border-success/20 bg-success/10 text-success"
                             : "border-destructive/20 bg-destructive/10 text-destructive"
                         }
                       >
-                        {apiKey.status}
+                        {app.status}
                       </Badge>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => handleRevokeKey(index)}
+                        className="size-8 p-0"
+                        onClick={() => handleCopy(app.apiKey, app._id)}
                       >
-                        {apiKey.status === "Active" ? "Revoke" : "Restore"}
+                        {copiedKey === app._id ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={
+                          app.status === "Active"
+                            ? "text-xs text-muted-foreground hover:text-destructive"
+                            : "text-xs text-muted-foreground hover:text-success"
+                        }
+                        onClick={() => {
+                          toggleStatus({ id: app._id })
+                          toast.success(`Key ${app.status === "Active" ? "revoked" : "restored"} for ${app.name}`)
+                        }}
+                      >
+                        {app.status === "Active" ? "Revoke" : "Restore"}
                       </Button>
                     </div>
                   </div>
@@ -241,15 +219,16 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* Integrations — static third-party (no Convex table yet) */}
         <TabsContent value="integrations" className="mt-6">
           <Card className="rounded-xl border-border/50 bg-card">
             <CardHeader>
-              <CardTitle className="text-base">Integrations</CardTitle>
-              <CardDescription>Connect third-party services and tools.</CardDescription>
+              <CardTitle className="text-base">Third-Party Integrations</CardTitle>
+              <CardDescription>Connect external services and tools to AegisAuth.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2">
-                {integrations.map((integration, index) => (
+                {integrations.map((integration) => (
                   <div
                     key={integration.name}
                     className="flex items-start justify-between rounded-lg border border-border/30 bg-secondary/20 p-4"
@@ -262,12 +241,11 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <Button
-                      variant={integration.connected ? "outline" : "default"}
+                      variant="outline"
                       size="sm"
-                      className="shrink-0 rounded-lg text-xs"
-                      onClick={() => handleToggleIntegration(index)}
+                      className="shrink-0 rounded-lg text-xs gap-1.5"
                     >
-                      {integration.connected ? "Connected" : "Connect"}
+                      Connect <ExternalLink className="size-3" />
                     </Button>
                   </div>
                 ))}
@@ -276,74 +254,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Generate API Key Dialog */}
-      <Dialog open={generateKeyOpen} onOpenChange={(open) => !open && handleCloseGenerateKey()}>
-        <DialogContent className="bg-card">
-          <DialogHeader>
-            <DialogTitle>{generatedKey ? "API Key Generated" : "Generate New API Key"}</DialogTitle>
-            <DialogDescription>
-              {generatedKey
-                ? "Copy this key now. It will not be shown again for security reasons."
-                : "Create a new API key for your application integration."}
-            </DialogDescription>
-          </DialogHeader>
-          {!generatedKey ? (
-            <>
-              <div className="flex flex-col gap-4 py-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="key-name">Key Name</Label>
-                  <input
-                    id="key-name"
-                    type="text"
-                    value={newKeyName}
-                    onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="e.g. Production API Key"
-                    className="h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Environment</Label>
-                  <Select value={newKeyEnv} onValueChange={setNewKeyEnv}>
-                    <SelectTrigger className="bg-secondary/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="production">Production</SelectItem>
-                      <SelectItem value="staging">Staging</SelectItem>
-                      <SelectItem value="development">Development</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={handleCloseGenerateKey}>Cancel</Button>
-                <Button onClick={handleGenerateKey} disabled={!newKeyName.trim()}>Generate Key</Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <div className="py-4">
-                <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                  <code className="flex-1 break-all text-sm font-mono text-primary">{generatedKey}</code>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-primary"
-                    onClick={() => handleCopyKey(generatedKey!)}
-                  >
-                    {copiedKey === generatedKey ? <Check className="size-4" /> : <Copy className="size-4" />}
-                    <span className="sr-only">Copy API key</span>
-                  </Button>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCloseGenerateKey}>Done</Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
