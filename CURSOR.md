@@ -1,56 +1,82 @@
-# 🚀 MASTER CURSOR PROMPT
+# AegisAuth Refactor Instructions
 
-Copy and paste the section below into Cursor (or any AI agent) to provide it with a perfect understanding of the AegisAuth system boundaries.
+You are working on a production-grade adaptive authentication system.
+
+This project is currently inconsistent and must be refactored into a clean, use-case-driven architecture.
+
+## Core Principle
+
+The system MUST follow this pipeline:
+
+Signal → Risk → Decision → Action → State → Monitoring
+
+No component is allowed to bypass this pipeline.
 
 ---
 
-```text
-We have 4 independent systems inside sbjit-project:
+## Non-Negotiable Rules
 
-1. aegis-demo-app
-   - A Next.js demo SaaS app
-   - Uses @aegis/auth-sdk
-   - Demonstrates login, risk scoring, live threat detection
-   - Does NOT calculate risk
+1. Single Source of Truth
+- Risk is calculated ONLY by the ML backend
+- Decision is made ONLY by the Decision Engine
+- No other layer can reinterpret risk
 
-2. sdk
-   - TypeScript SDK package
-   - Collects contextual signals
-   - Attaches API key
-   - Calls ml-backend via REST
-   - Provides helper methods for monitoring
-   - Pure integration layer
+2. No Duplicate Logic
+- Do not duplicate risk thresholds or logic in multiple places
+- Remove all conflicting implementations
 
-3. ml-backend
-   - Python FastAPI service
-   - Loads 5 trained ML models
-   - Calculates risk score
-   - Aggregates risk components
-   - Returns structured RiskResponse
-   - Stateless inference service
+3. Explicit State Management
+- Session states must be defined and controlled
+- No free-form status strings
 
-4. frontend
-   - AegisAuth platform dashboard
-   - Manages projects and API keys
-   - Displays risk logs
-   - Displays analytics
-   - Reads data from ml-backend
+4. Strict Separation of Concerns
+- SDK = signal collection only
+- ML backend = risk scoring only
+- Decision engine = action selection only
+- Platform = visualization only
 
-Architecture Flow:
+5. No Silent Assumptions
+- Every transformation must be explicit
+- No hidden mapping logic
 
-Demo App → SDK → ML Backend → RiskResponse → Demo App UI
-                                      ↓
-                                Logs stored
-                                      ↓
-                              Platform Dashboard
+6. No Mock Logic in Core Flow
+- Remove hardcoded defaults used in production paths
+- Simulation logic must be isolated
 
-These systems must remain independent.
-No ML logic inside frontend or demo app.
-SDK must remain inference-only.
-ML backend must not contain UI code.
-Platform must not contain inference logic.
+7. Security First
+- Every request must be authenticated
+- No userId passed as argument for authorization
 
-Maintain strict separation of concerns.
-Use REST for communication between services.
-Use API key authentication for SDK to backend calls.
-```
+---
+
+## What NOT to do
+
+- Do not introduce new features
+- Do not redesign UI
+- Do not change libraries unless necessary
+- Do not write placeholder logic
+
+---
+
+## Expected Output Style
+
+- Clear function responsibility
+- Explicit data flow
+- Typed data contracts
+- No ambiguous naming
+
+---
+
+## Refactor Goal
+
+Transform the system into:
+
+A deterministic, explainable, real-time risk decision engine
+
+---
+
+## When unsure
+
+- Prefer removing logic over keeping unclear logic
+- Prefer explicit over implicit
+- Prefer correctness over completeness
