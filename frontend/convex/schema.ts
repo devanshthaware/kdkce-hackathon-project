@@ -35,13 +35,15 @@ export default defineSchema({
         mlEnhancement: v.boolean(),
         name: v.string(),
         redirectUri: v.optional(v.string()),
+        appUrl: v.optional(v.string()), // Added for backward compatibility on old records, but required on new ones
+        allowedOrigins: v.optional(v.array(v.string())),
         riskPolicyId: v.id("riskPolicies"),
         secret: v.string(),
         status: v.string(),
         type: v.string(),
         userId: v.string(),
         organizationId: v.optional(v.id("organizations")),
-    }).index("by_user", ["userId"]).index("by_org", ["organizationId"]),
+    }).index("by_user", ["userId"]).index("by_org", ["organizationId"]).index("by_api_key", ["apiKey"]),
     organizations: defineTable({
         name: v.string(),
         ownerId: v.string(),

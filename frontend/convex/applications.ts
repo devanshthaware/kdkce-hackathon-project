@@ -108,6 +108,8 @@ export const create = mutation({
             apiKey,
             secret,
             userId: identity.subject,
+            appUrl: "http://localhost:3000",
+            allowedOrigins: ["http://localhost:3000"]
         });
 
         // Part 9 - Create default security settings
@@ -174,3 +176,12 @@ export const toggleStatus = mutation({
     },
 });
 
+export const getByApiKey = query({
+    args: { apiKey: v.string() },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query("applications")
+            .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
+            .first();
+    }
+});

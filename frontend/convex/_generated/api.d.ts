@@ -14,6 +14,7 @@ import type * as alerts from "../alerts.js";
 import type * as applications from "../applications.js";
 import type * as decisions from "../decisions.js";
 import type * as events from "../events.js";
+import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as ml from "../ml.js";
 import type * as organizations from "../organizations.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   applications: typeof applications;
   decisions: typeof decisions;
   events: typeof events;
+  http: typeof http;
   messages: typeof messages;
   ml: typeof ml;
   organizations: typeof organizations;

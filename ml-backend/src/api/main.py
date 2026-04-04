@@ -58,20 +58,31 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Setting allowed origins to the frontend application URL
+ALLOWED_ORIGINS = ["http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# API Key Middleware
+# API Key & Origin Middleware
 @app.middleware("http")
-async def validate_api_key(request: Request, call_next):
+async def validate_api_key_and_origin(request: Request, call_next):
     # Skip validation for health and root
     if request.url.path in ["/health", "/", "/docs", "/openapi.json"]:
         return await call_next(request)
+    
+    # Origin validation
+    origin = request.headers.get("origin")
+    if origin and origin not in ALLOWED_ORIGINS:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"Forbidden: Invalid Origin {origin}"}
+        )
     
     api_key = request.headers.get("x-api-key")
     expected_key = os.getenv("ML_API_KEY", "aegis_master_key_2024")

@@ -189,6 +189,22 @@ export default function IntegrationsPage() {
                         </div>
                       </div>
 
+                      {/* App URL & Allowed Origins */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Application URL</span>
+                          <div className="flex flex-1 items-center justify-between gap-4 rounded-xl border border-border/50 bg-secondary/10 px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                            <span className="truncate">{app.appUrl || "http://localhost:3000"}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Allowed Origins</span>
+                          <div className="flex flex-1 items-center justify-between gap-4 rounded-xl border border-border/50 bg-secondary/10 px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                            <span className="truncate">{(app.allowedOrigins || ["http://localhost:3000"]).join(', ')}</span>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Created */}
                       <div className="flex items-center justify-between border-t border-border/30 pt-4 mt-1">
                         <p className="text-xs text-muted-foreground">
@@ -280,7 +296,10 @@ export default function IntegrationsPage() {
 
 const aegis = new AegisAuth({
   apiKey: "your_api_key_here",
-  endpoint: "https://api.aegisauth.com"
+  endpoint: "https://api.aegisauth.com",
+  headers: {
+    "x-origin": typeof window !== "undefined" ? window.location.origin : process.env.APP_URL || "unknown"
+  }
 });
 
 const risk = await aegis.protectLogin({
