@@ -1,10 +1,12 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import "@/lib/aegis"; // Import to ensure AegisAuth is initialized on the server
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs"; 
-import { getCurrentUser, logout } from "@devanshthaware/aegis-auth";
+import { getCurrentUser, logout, signup, login, setTracking } from "@devanshthaware/aegis-auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 interface AegisUser {
   id: string;
@@ -50,11 +52,20 @@ export async function getDbUserId(): Promise<string | null> {
     const envUserId = process.env.CURRENT_USER_ID;
     if (envUserId) return envUserId;
 
-    // 2. Get user from AegisAuth SDK
+    // 2. Restore AegisAuth session from cookies
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get("aegis_session_id")?.value;
+    const correlationId = cookieStore.get("aegis_correlation_id")?.value;
+
+    if (sessionId) {
+      setTracking(sessionId, correlationId || "restored");
+    }
+
+    // 3. Get user from AegisAuth SDK
     const aegisUser = await getCurrentUser();
     if (!aegisUser) return null;
 
-    // 3. Find user in Prisma
+    // 4. Find user in Prisma
     const user = await prisma.user.findUnique({
       where: { email: aegisUser.email },
       select: { id: true },
@@ -92,6 +103,24 @@ export async function registerUser(formData: FormData) {
         passwordHash,
       },
     });
+
+    // Call AegisAuth SDK to track signup and return initial decision
+    const aegisResponse = await signup({
+      email,
+      name: name || undefined,
+      metadata: { username }
+    });
+
+    console.log("Aegis signup response:", aegisResponse);
+
+    // Store session in cookies for persistence
+    const cookieStore = await cookies();
+    if (aegisResponse.sessionId) {
+      cookieStore.set("aegis_session_id", aegisResponse.sessionId, { httpOnly: true, secure: true });
+      if (aegisResponse.correlationId) {
+        cookieStore.set("aegis_correlation_id", aegisResponse.correlationId, { httpOnly: true, secure: true });
+      }
+    }
 
     return { success: true, user: { id: user.id, email: user.email } };
   } catch (error) {
@@ -154,6 +183,23 @@ export async function loginUser(formData: FormData) {
 
     if (!valid) return { success: false, error: "Invalid credentials" };
 
+    // Call AegisAuth SDK to track login and get risk decision
+    const aegisResponse = await login({
+      email,
+      metadata: { timestamp: new Date().toISOString() }
+    });
+
+    console.log("Aegis login response:", aegisResponse);
+
+    // Store session in cookies for persistence
+    const cookieStore = await cookies();
+    if (aegisResponse.sessionId) {
+      cookieStore.set("aegis_session_id", aegisResponse.sessionId, { httpOnly: true, secure: true });
+      if (aegisResponse.correlationId) {
+        cookieStore.set("aegis_correlation_id", aegisResponse.correlationId, { httpOnly: true, secure: true });
+      }
+    }
+
     // In a real app, you'd set a session cookie here.
     // For this demo, we'll assume the client handles the session via AegisAuth SDK.
     
@@ -171,6 +217,9 @@ export async function loginUser(formData: FormData) {
 export async function logoutUser() {
   try {
     await logout();
+    const cookieStore = await cookies();
+    cookieStore.delete("aegis_session_id");
+    cookieStore.delete("aegis_correlation_id");
   } catch (error) {
     console.error("Logout error:", error);
   }

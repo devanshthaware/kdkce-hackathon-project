@@ -5,15 +5,14 @@ import { initAegisAuth } from "@devanshthaware/aegis-auth";
  * Note: These environment variables must be provided in .env.local
  */
 const aegisConfig = {
-  apiKey: process.env.NEXT_PUBLIC_AEGIS_API_KEY || "placeholder_api_key",
-  baseUrl: process.env.NEXT_PUBLIC_AEGIS_BASE_URL || "https://api.aegisauth.com",
-  appId: process.env.NEXT_PUBLIC_AEGIS_APP_ID || "placeholder_app_id",
-  debug: process.env.NODE_ENV !== "production",
+  apiKey: process.env.NEXT_PUBLIC_AEGIS_API_KEY || "aegis_master_key_2024",
+  baseUrl: process.env.NEXT_PUBLIC_AEGIS_BASE_URL || "http://localhost:8000",
+  appId: process.env.NEXT_PUBLIC_AEGIS_APP_ID || "app_ve0u0g",
+  debug: true,
 };
 
 // Initialize the SDK once
-if (typeof window !== "undefined") {
-  initAegisAuth(aegisConfig);
-}
+console.log("[Aegis Lib] Initializing SDK on", typeof window !== "undefined" ? "Client" : "Server", "with appId:", aegisConfig.appId);
+initAegisAuth(aegisConfig);
 
 export { aegisConfig };

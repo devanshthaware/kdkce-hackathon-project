@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import os
 import traceback
 from src.api.routes_login import router as login_router
+from src.api.routes_auth import router as auth_router
 from src.api.routes_session import router as session_router
 from src.api.routes_device import router as device_router
 from src.api.routes_baseline import router as baseline_router
@@ -59,7 +60,7 @@ app = FastAPI(
 
 # CORS middleware
 # Setting allowed origins to the frontend application URL
-ALLOWED_ORIGINS = ["http://localhost:3000"]
+ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -97,6 +98,7 @@ async def validate_api_key_and_origin(request: Request, call_next):
 
 # Include routers
 app.include_router(login_router)
+app.include_router(auth_router)
 app.include_router(session_router)
 app.include_router(device_router)
 app.include_router(baseline_router)

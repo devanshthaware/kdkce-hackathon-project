@@ -20,6 +20,7 @@ export {
 
 // 5. Signal Collection and continuous Monitoring (Step 8 & 9)
 export { collectSignal, startMonitoring, stopMonitoring } from "./signals/signals";
+export { setTracking } from "./api/client";
 
 // 6. Action Execution (Step 10)
 export { executeAction, onAction } from "./actions/actions";
