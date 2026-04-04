@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { SignInButton, useUser } from "@clerk/nextjs";
 import { format } from "date-fns";
 import {
   CalendarIcon,
@@ -33,12 +32,15 @@ import toast from "react-hot-toast";
 
 type User = Awaited<ReturnType<typeof getProfileByUsername>>;
 type Posts = Awaited<ReturnType<typeof getUserPosts>>;
+type Post = Posts[number];
 
 interface ProfilePageClientProps {
   user: NonNullable<User>;
   posts: Posts;
   likedPosts: Posts;
   isFollowing: boolean;
+  isOwnProfile: boolean;
+  dbUserId: string | null;
 }
 
 function ProfilePageClient({
@@ -46,8 +48,9 @@ function ProfilePageClient({
   likedPosts,
   posts,
   user,
+  isOwnProfile,
+  dbUserId,
 }: ProfilePageClientProps) {
-  const { user: currentUser } = useUser();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [isUpdatingFollow, setIsUpdatingFollow] = useState(false);
@@ -73,8 +76,6 @@ function ProfilePageClient({
   };
 
   const handleFollow = async () => {
-    if (!currentUser) return;
-
     try {
       setIsUpdatingFollow(true);
       await toggleFollow(user.id);
@@ -85,10 +86,6 @@ function ProfilePageClient({
       setIsUpdatingFollow(false);
     }
   };
-
-  const isOwnProfile =
-    currentUser?.username === user.username ||
-    currentUser?.emailAddresses[0].emailAddress.split("@")[0] === user.username;
 
   const formattedDate = format(new Date(user.createdAt), "MMMM yyyy");
 
@@ -127,11 +124,7 @@ function ProfilePageClient({
                 </div>
 
                 {/* "FOLLOW & EDIT PROFILE" BUTTONS */}
-                {!currentUser ? (
-                  <SignInButton mode="modal">
-                    <Button className="w-full mt-4">Follow</Button>
-                  </SignInButton>
-                ) : isOwnProfile ? (
+                {isOwnProfile ? (
                   <Button className="w-full mt-4" onClick={() => setShowEditDialog(true)}>
                     <EditIcon className="size-4 mr-2" />
                     Edit Profile
@@ -203,7 +196,7 @@ function ProfilePageClient({
           <TabsContent value="posts" className="mt-6">
             <div className="space-y-6">
               {posts.length > 0 ? (
-                posts.map((post) => <PostCard key={post.id} post={post} dbUserId={user.id} />)
+                posts.map((post: Post) => <PostCard key={post.id} post={post} dbUserId={dbUserId} />)
               ) : (
                 <div className="text-center py-8 text-muted-foreground">No posts yet</div>
               )}
@@ -213,7 +206,7 @@ function ProfilePageClient({
           <TabsContent value="likes" className="mt-6">
             <div className="space-y-6">
               {likedPosts.length > 0 ? (
-                likedPosts.map((post) => <PostCard key={post.id} post={post} dbUserId={user.id} />)
+                likedPosts.map((post: Post) => <PostCard key={post.id} post={post} dbUserId={dbUserId} />)
               ) : (
                 <div className="text-center py-8 text-muted-foreground">No liked posts to show</div>
               )}

@@ -1,5 +1,5 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
-import { auth } from "@clerk/nextjs/server";
+import { getDbUserId } from "@/actions/user.action";
 
 const f = createUploadthing();
 
@@ -13,7 +13,7 @@ export const ourFileRouter = {
   })
     .middleware(async () => {
       // this code runs on your server before upload
-      const { userId } = await auth();
+      const userId = await getDbUserId();
       if (!userId) throw new Error("Unauthorized");
 
       // whatever is returned here is accessible in onUploadComplete as `metadata`

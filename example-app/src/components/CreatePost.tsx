@@ -1,6 +1,5 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarImage } from "./ui/avatar";
@@ -12,7 +11,6 @@ import toast from "react-hot-toast";
 import ImageUpload from "./ImageUpload";
 
 function CreatePost() {
-  const { user } = useUser();
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isPosting, setIsPosting] = useState(false);
@@ -20,11 +18,6 @@ function CreatePost() {
 
   const handleSubmit = async () => {
     if (!content.trim() && !imageUrl) return;
-
-    if (!user) {
-      toast.error("Please sign in to post");
-      return;
-    }
 
     setIsPosting(true);
     try {
@@ -53,14 +46,14 @@ function CreatePost() {
         <div className="space-y-4">
           <div className="flex space-x-4">
             <Avatar className="w-10 h-10">
-              <AvatarImage src={user?.imageUrl || "/avatar.png"} />
+              <AvatarImage src="/avatar.png" />
             </Avatar>
             <Textarea
               placeholder="What's on your mind?"
               className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-0 text-base"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              disabled={isPosting || !user}
+              disabled={isPosting}
             />
           </div>
 
@@ -85,7 +78,7 @@ function CreatePost() {
                 size="sm"
                 className="text-muted-foreground hover:text-primary"
                 onClick={() => setShowImageUpload(!showImageUpload)}
-                disabled={isPosting || !user}
+                disabled={isPosting}
               >
                 <ImageIcon className="size-4 mr-2" />
                 Photo
@@ -94,7 +87,7 @@ function CreatePost() {
             <Button
               className="flex items-center"
               onClick={handleSubmit}
-              disabled={(!content.trim() && !imageUrl) || isPosting || !user}
+              disabled={(!content.trim() && !imageUrl) || isPosting}
             >
               {isPosting ? (
                 <>

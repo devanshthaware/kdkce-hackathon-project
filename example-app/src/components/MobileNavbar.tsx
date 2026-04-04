@@ -3,7 +3,6 @@
 import {
   BellIcon,
   HomeIcon,
-  LogOutIcon,
   MenuIcon,
   MoonIcon,
   SunIcon,
@@ -12,13 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
-import { useAuth, SignInButton, SignOutButton } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 
 function MobileNavbar() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const { isSignedIn } = useAuth();
   const { theme, setTheme } = useTheme();
 
   return (
@@ -52,34 +49,18 @@ function MobileNavbar() {
               </Link>
             </Button>
 
-            {isSignedIn ? (
-              <>
-                <Button variant="ghost" className="flex items-center gap-3 justify-start" asChild>
-                  <Link href="/notifications">
-                    <BellIcon className="w-4 h-4" />
-                    Notifications
-                  </Link>
-                </Button>
-                <Button variant="ghost" className="flex items-center gap-3 justify-start" asChild>
-                  <Link href="/profile">
-                    <UserIcon className="w-4 h-4" />
-                    Profile
-                  </Link>
-                </Button>
-                <SignOutButton>
-                  <Button variant="ghost" className="flex items-center gap-3 justify-start w-full">
-                    <LogOutIcon className="w-4 h-4" />
-                    Logout
-                  </Button>
-                </SignOutButton>
-              </>
-            ) : (
-              <SignInButton mode="modal">
-                <Button variant="default" className="w-full">
-                  Sign In
-                </Button>
-              </SignInButton>
-            )}
+            <Button variant="ghost" className="flex items-center gap-3 justify-start" asChild>
+              <Link href="/notifications">
+                <BellIcon className="w-4 h-4" />
+                Notifications
+              </Link>
+            </Button>
+            <Button variant="ghost" className="flex items-center gap-3 justify-start" asChild>
+              <Link href="/profile">
+                <UserIcon className="w-4 h-4" />
+                Profile
+              </Link>
+            </Button>
           </nav>
         </SheetContent>
       </Sheet>

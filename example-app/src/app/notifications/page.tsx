@@ -35,10 +35,10 @@ function NotificationsPage() {
     const fetchNotifications = async () => {
       setIsLoading(true);
       try {
-        const data = await getNotifications();
+        const data: Notification[] = await getNotifications();
         setNotifications(data);
 
-        const unreadIds = data.filter((n) => !n.read).map((n) => n.id);
+        const unreadIds = data.filter((n: Notification) => !n.read).map((n: Notification) => n.id);
         if (unreadIds.length > 0) await markNotificationsAsRead(unreadIds);
       } catch (error) {
         toast.error("Failed to fetch notifications");
@@ -59,7 +59,7 @@ function NotificationsPage() {
           <div className="flex items-center justify-between">
             <CardTitle>Notifications</CardTitle>
             <span className="text-sm text-muted-foreground">
-              {notifications.filter((n) => !n.read).length} unread
+              {notifications.filter((n: Notification) => !n.read).length} unread
             </span>
           </div>
         </CardHeader>
@@ -68,7 +68,7 @@ function NotificationsPage() {
             {notifications.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground">No notifications yet</div>
             ) : (
-              notifications.map((notification) => (
+              notifications.map((notification: Notification) => (
                 <div
                   key={notification.id}
                   className={`flex items-start gap-4 p-4 border-b hover:bg-muted/25 transition-colors ${

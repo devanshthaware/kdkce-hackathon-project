@@ -1,8 +1,11 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default clerkMiddleware();
+// Auth has been removed. This middleware is a passthrough.
+export function middleware(request: NextRequest) {
+  return NextResponse.next();
+}
 
-// Apply middleware to all app routes except Next.js internals/static assets.
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
